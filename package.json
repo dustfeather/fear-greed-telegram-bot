@@ -1,13 +1,17 @@
 {
-  "name": "fear-greed-telegram-bot",
-  "version": "0.0.0",
-  "private": true,
-  "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev"
-  },
-  "devDependencies": {
-    "wrangler": "^3.60.3"
-  }
+	"name": "fear-greed-telegram-bot",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev"
+	},
+	"devDependencies": {
+		"wrangler": "^3.60.3"
+	},
+	"dependencies": {
+		"@cloudflare/kv-asset-handler": "^0.3.4",
+		"node-fetch": "^3.3.2"
+	}
 }
