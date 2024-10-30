@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 addEventListener('scheduled', event => {
 	event.waitUntil(handleScheduled(event));
 });
