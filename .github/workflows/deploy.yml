@@ -11,12 +11,13 @@ jobs:
 
         steps:
             -   name: Checkout Repository
-                uses: actions/checkout@v3
+                uses: actions/checkout@v4
 
             -   name: Publish to Cloudflare Workers
                 uses: cloudflare/wrangler-action@v3
                 with:
                     apiToken: ${{ secrets.CF_API_TOKEN }}
+                    accountId: ${{ secrets.CF_ACCOUNT_ID }}
                 env:
                     TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
                     FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
