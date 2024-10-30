@@ -2,6 +2,7 @@
 	"name": "fear-greed-telegram-bot",
 	"version": "0.0.0",
 	"private": true,
+	"type": "module",
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
@@ -12,6 +13,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/kv-asset-handler": "^0.3.4",
-		"node-fetch": "^3.3.2"
+		"node-fetch": "^3.3.2",
+		"quickchart-js": "^3.1.3"
 	}
 }

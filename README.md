@@ -41,3 +41,8 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
     ```
 
 2. Interact with the bot on Telegram using the commands listed above.
+
+## Todo:
+
+1. Generates a pie chart of the current Fear and Greed Index score.
+2. Add the pie chart to the chat message.
