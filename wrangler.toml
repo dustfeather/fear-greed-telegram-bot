@@ -10,7 +10,6 @@ crons = ["0 14 * * *"]  # Runs every day at 14:00 UTC
 [vars]
 TELEGRAM_BOT_TOKEN_SECRET = "$TELEGRAM_BOT_TOKEN"
 
-[kv_namespaces]
 [[kv_namespaces]]
 binding = "FEAR_GREED_KV"
 id = "$FEAR_GREED_KV_NAMESPACE_ID"
