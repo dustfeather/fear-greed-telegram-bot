@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 addEventListener('scheduled', event => {
 	event.waitUntil(handleScheduled(event));
 });
@@ -14,24 +12,22 @@ async function handleScheduled(event, chatId = null) {
 	// Fetch Fear and Greed Index
 	const url = 'https://production.dataviz.cnn.io/index/fearandgreed/current';
 	try {
-		const response = await fetch(url);
-		const data = await response.json();
+		// const response = await fetch(url);
+		const data = JSON.parse('{"score": 57.8, "rating": "greed", "timestamp": "2024-10-30T19:59:59+00:00", "previous_close": 60.2285714285714, "previous_1_week": 62.2857142857143, "previous_1_month": 73.5142857142857, "previous_1_year": 29.2}');
+		// const data = await response.json();
 		const rating = data['rating'].toLowerCase();
 		const score = (Math.round(data['score'] * 100) / 100).toFixed(2);
+		const message = `⚠️ The current *Fear and Greed Index* rating is ${score}% (*${capitalize(rating)}*).`;
 
 		if (rating === 'fear' || rating === 'extreme fear') {
-			const message = `🔔 Alert: The current Fear and Greed Index rating is * ${score}% (${capitalize(rating)})*.`;
-
 			// Retrieve chat IDs from KV storage
 			const chatIdsString = await FEAR_GREED_KV.get('chat_ids');
 			const chatIds = chatIdsString ? JSON.parse(chatIdsString) : [];
-			if (chatId) {
-				// Send message to a specific subscriber
-				await sendTelegramMessage(chatId, message);
-			} else {
-				// Send message to all subscribers
-				await Promise.all(chatIds.map(chatId => sendTelegramMessage(chatId, message)));
-			}
+			// Send message to all subscribers
+			await Promise.all(chatIds.map(chatId => sendTelegramMessage(chatId, message)));
+		} else if (chatId) {
+			// Send message to a specific subscriber
+			await sendTelegramMessage(chatId, message);
 		}
 	} catch (e) {
 		console.error(`An error occurred: ${e}`);
