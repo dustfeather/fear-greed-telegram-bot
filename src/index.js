@@ -1,69 +1,100 @@
-import { DurableObject } from "cloudflare:workers";
+addEventListener('scheduled', event => {
+	event.waitUntil(handleScheduled(event));
+});
 
-/**
- * Welcome to Cloudflare Workers! This is your first Durable Objects application.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your Durable Object in action
- * - Run `npm run deploy` to publish your application
- *
- * Learn more at https://developers.cloudflare.com/durable-objects
- */
+async function handleScheduled(event) {
+	// Fetch Fear and Greed Index
+	const url = 'https://production.dataviz.cnn.io/index/fearandgreed/current';
+	try {
+		const response = await fetch(url);
+		const data = await response.json();
+		const rating = data['rating'].toLowerCase();
 
-/**
- * Env provides a mechanism to reference bindings declared in wrangler.toml within JavaScript
- *
- * @typedef {Object} Env
- * @property {DurableObjectNamespace} MY_DURABLE_OBJECT - The Durable Object namespace binding
- */
+		if (rating === 'fear' || rating === 'extreme fear') {
+			const message = `🔔 Alert: The current Fear and Greed Index rating is *${capitalize(rating)}*.`;
 
-/** A Durable Object's behavior is defined in an exported Javascript class */
-export class MyDurableObject extends DurableObject {
-	/**
-	 * The constructor is invoked once upon creation of the Durable Object, i.e. the first call to
-	 * 	`DurableObjectStub::get` for a given identifier (no-op constructors can be omitted)
-	 *
-	 * @param {DurableObjectState} ctx - The interface for interacting with Durable Object state
-	 * @param {Env} env - The interface to reference bindings declared in wrangler.toml
-	 */
-	constructor(ctx, env) {
-		super(ctx, env);
-	}
+			// Retrieve chat IDs from KV storage
+			const chatIdsString = await FEAR_GREED_KV.get('chat_ids');
+			const chatIds = chatIdsString ? JSON.parse(chatIdsString) : [];
 
-	/**
-	 * The Durable Object exposes an RPC method sayHello which will be invoked when when a Durable
-	 *  Object instance receives a request from a Worker via the same method invocation on the stub
-	 *
-	 * @param {string} name - The name provided to a Durable Object instance from a Worker
-	 * @returns {Promise<string>} The greeting to be sent back to the Worker
-	 */
-	async sayHello(name) {
-		return `Hello, ${name}!`;
+			// Send message to all subscribers
+			await Promise.all(chatIds.map(chatId => sendTelegramMessage(chatId, message)));
+		}
+	} catch (e) {
+		console.error(`An error occurred: ${e}`);
 	}
 }
 
-export default {
-	/**
-	 * This is the standard fetch handler for a Cloudflare Worker
-	 *
-	 * @param {Request} request - The request submitted to the Worker from the client
-	 * @param {Env} env - The interface to reference bindings declared in wrangler.toml
-	 * @param {ExecutionContext} ctx - The execution context of the Worker
-	 * @returns {Promise<Response>} The response to be sent back to the client
-	 */
-	async fetch(request, env, ctx) {
-		// We will create a `DurableObjectId` using the pathname from the Worker request
-		// This id refers to a unique instance of our 'MyDurableObject' class above
-		let id = env.MY_DURABLE_OBJECT.idFromName(new URL(request.url).pathname);
+function capitalize(str) {
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
-		// This stub creates a communication channel with the Durable Object instance
-		// The Durable Object constructor will be invoked upon the first call for a given id
-		let stub = env.MY_DURABLE_OBJECT.get(id);
+async function sendTelegramMessage(chatId, message) {
+	const TELEGRAM_BOT_TOKEN = TELEGRAM_BOT_TOKEN_SECRET;
+	const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
 
-		// We call the `sayHello()` RPC method on the stub to invoke the method on the remote
-		// Durable Object instance
-		let greeting = await stub.sayHello("world");
+	const payload = {
+		chat_id: chatId,
+		text: message,
+		parse_mode: 'Markdown'
+	};
 
-		return new Response(greeting);
-	},
-};
+	await fetch(url, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify(payload)
+	});
+}
+
+// HTTP event listener to handle /start and /stop commands
+addEventListener('fetch', event => {
+	event.respondWith(handleRequest(event.request));
+});
+
+async function handleRequest(request) {
+	const { pathname } = new URL(request.url);
+
+	if (request.method === 'POST') {
+		const update = await request.json();
+		const message = update.message || update.edited_message;
+		if (!message || !message.text) {
+			return new Response('OK');
+		}
+
+		const chatId = message.chat.id;
+		const text = message.text.trim();
+
+		if (text === '/start') {
+			await subscribe(chatId);
+			await sendTelegramMessage(chatId, 'You\'ve subscribed to Fear and Greed Index alerts.');
+		} else if (text === '/stop') {
+			await unsubscribe(chatId);
+			await sendTelegramMessage(chatId, 'You\'ve unsubscribed from Fear and Greed Index alerts.');
+		}
+
+		return new Response('OK');
+	} else {
+		return new Response('Method not allowed', { status: 405 });
+	}
+}
+
+async function subscribe(chatId) {
+	const chatIdsString = await FEAR_GREED_KV.get('chat_ids');
+	const chatIds = chatIdsString ? JSON.parse(chatIdsString) : [];
+	if (!chatIds.includes(chatId)) {
+		chatIds.push(chatId);
+		await FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+	}
+}
+
+async function unsubscribe(chatId) {
+	const chatIdsString = await FEAR_GREED_KV.get('chat_ids');
+	const chatIds = chatIdsString ? JSON.parse(chatIdsString) : [];
+	const index = chatIds.indexOf(chatId);
+	if (index !== -1) {
+		chatIds.splice(index, 1);
+		await FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+	}
+}
