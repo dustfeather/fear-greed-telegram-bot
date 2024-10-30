@@ -13,6 +13,13 @@ jobs:
             -   name: Checkout Repository
                 uses: actions/checkout@v4
 
+            -   name: Substitute Environment Variables
+                shell: bash
+                run: |
+                    sed -e "s|\${FEAR_GREED_KV_NAMESPACE_ID}|${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}|g" \
+                        -e "s|\${TELEGRAM_BOT_TOKEN}|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" \
+                        wrangler.toml.template > wrangler.toml
+
             -   name: Publish to Cloudflare Workers
                 uses: cloudflare/wrangler-action@v3
                 with:
