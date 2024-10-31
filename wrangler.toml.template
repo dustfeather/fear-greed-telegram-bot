@@ -1,8 +1,11 @@
 name = "fear-greed-telegram-bot"
+type = "javascript"
 main = "src/index.js"
-compatibility_date = "2023-10-30"
+compatibility_date = "2024-09-23"
 workers_dev = true
 send_metrics = true
+
+compatibility_flags = ["nodejs_compat"]
 
 [triggers]
 crons = ["0 14 * * *"]  # Runs every day at 14:00 UTC
