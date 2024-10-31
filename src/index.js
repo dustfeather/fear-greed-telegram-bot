@@ -31,10 +31,10 @@ async function handleRequest(request, env) {
     const text = message.text.trim();
 
     if (text === '/start') {
-      await sub(chatId);
+      await sub(chatId, env);
       await sendTelegramMessage(chatId, 'You\'ve subscribed to Fear and Greed Index alerts.', env);
     } else if (text === '/stop') {
-      await unsub(chatId);
+      await unsub(chatId, env);
       await sendTelegramMessage(chatId, 'You\'ve unsubscribed from Fear and Greed Index alerts.', env);
     } else if (text === '/help') {
       await sendHelpMessage(chatId, env);
