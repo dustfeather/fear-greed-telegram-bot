@@ -1,30 +1,40 @@
 name: Deploy to Cloudflare Workers
 
 on:
-    push:
-        branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
 
 jobs:
-    deploy:
-        name: Deploy to Cloudflare Workers
-        runs-on: ubuntu-latest
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
 
-        steps:
-            -   name: Checkout Repository
-                uses: actions/checkout@v4
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-            -   name: Substitute Environment Variables
-                shell: bash
-                run: |
-                    sed -e "s|\${FEAR_GREED_KV_NAMESPACE_ID}|${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}|g" \
-                        -e "s|\${TELEGRAM_BOT_TOKEN}|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" \
-                        wrangler.toml.template > wrangler.toml
+      - name: Substitute Environment Variables
+        shell: bash
+        run: |
+          sed -e "s|\${FEAR_GREED_KV_NAMESPACE_ID}|${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}|g" \
+              -e "s|\${TELEGRAM_BOT_TOKEN}|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" \
+              wrangler.toml.template > wrangler.toml
 
-            -   name: Publish to Cloudflare Workers
-                uses: cloudflare/wrangler-action@v3
-                with:
-                    apiToken: ${{ secrets.CF_API_TOKEN }}
-                    accountId: ${{ secrets.CF_ACCOUNT_ID }}
-                env:
-                    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-                    FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+      - name: Publish to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+      - name: Attest
+        uses: actions/attest-build-provenance@v1
+        id: attest
+        with:
+          subject-path: '.'
