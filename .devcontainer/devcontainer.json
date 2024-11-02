@@ -1,0 +1,18 @@
+{
+  "name": "Fear Greed Telegram Bot",
+  "context": "..",
+  "dockerFile": "Dockerfile",
+  "appPort": [8787],
+  "postCreateCommand": "npm install",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ],
+  "remoteEnv": {
+    "TELEGRAM_BOT_TOKEN": "${localEnv:TELEGRAM_BOT_TOKEN}",
+    "FEAR_GREED_KV_NAMESPACE_ID": "${localEnv:FEAR_GREED_KV_NAMESPACE_ID}"
+  }
+}
