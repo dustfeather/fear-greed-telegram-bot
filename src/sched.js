@@ -42,7 +42,7 @@ async function handleScheduled(chatId = null, env) {
     });
     if (rating === 'fear' || rating === 'extreme fear') {
       // Retrieve chat IDs from KV storage
-      const chatIdsString = await FEAR_GREED_KV.get('chat_ids');
+      const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
       const chatIds = chatIdsString ? JSON.parse(chatIdsString) : [];
       // Send message to all subscribers
       await Promise.all(chatIds.map(chatId => sendTelegramMessage(chatId, message, env)));
