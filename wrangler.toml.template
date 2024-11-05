@@ -9,7 +9,7 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 
 [triggers]
-crons = ["0 9-16 * * *"]  # Runs every 15m
+crons = ["0 14-21 * * *"]  # Runs every 15m
 
 [vars]
 TELEGRAM_BOT_TOKEN_SECRET = "${TELEGRAM_BOT_TOKEN}"
