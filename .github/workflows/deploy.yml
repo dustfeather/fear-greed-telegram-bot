@@ -15,6 +15,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Substitute Environment Variables
         shell: bash
         run: |
@@ -22,11 +30,8 @@ jobs:
               -e "s|\${TELEGRAM_BOT_TOKEN}|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" \
               wrangler.jsonc.template > wrangler.jsonc
 
-      - name: Publish to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler deploy
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
