@@ -57,7 +57,13 @@ if ([string]::IsNullOrEmpty($TestChatId)) {
     $TestChatId = "123456789"  # Fallback to default
     Write-Host "⚠️  ADMIN_CHAT_ID not found in .dev.vars, using default test ID" -ForegroundColor Yellow
 } else {
-    Write-Host "✓ Using ADMIN_CHAT_ID from .dev.vars: $TestChatId" -ForegroundColor Green
+    # Mask chat ID for security - only show first and last few digits
+    $maskedChatId = if ($TestChatId.Length -gt 6) {
+        $TestChatId.Substring(0, 3) + "..." + $TestChatId.Substring($TestChatId.Length - 3)
+    } else {
+        "***masked***"
+    }
+    Write-Host "✓ Using ADMIN_CHAT_ID from .dev.vars: $maskedChatId" -ForegroundColor Green
 }
 
 # Use same chat ID for user ID if not provided

@@ -125,7 +125,8 @@ runner.test('Verify message format uses Markdown', async () => {
   
   let capturedPayload = null;
   const mockFetch = async (url, options) => {
-    if (url.includes('api.telegram.org')) {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'api.telegram.org' || urlObj.hostname.endsWith('.api.telegram.org')) {
       capturedPayload = JSON.parse(options.body);
       return {
         ok: true,
@@ -284,7 +285,8 @@ runner.test('Broadcast with network errors', async () => {
   
   let callCount = 0;
   const mockFetch = async (url) => {
-    if (url.includes('api.telegram.org')) {
+    const urlObj = new URL(url);
+    if (urlObj.hostname === 'api.telegram.org' || urlObj.hostname.endsWith('.api.telegram.org')) {
       callCount++;
       // Throw error for second call
       if (callCount === 2) {

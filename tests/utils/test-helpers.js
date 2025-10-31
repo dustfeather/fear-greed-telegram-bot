@@ -62,27 +62,50 @@ export function createMockFetch(mockResponses = {}) {
     })
   };
 
+  /**
+   * Securely check if hostname matches a domain (exact match only)
+   * Prevents partial string matching vulnerabilities (e.g., "example.com.evil.com" matching "example.com")
+   * @param {string} hostname - The hostname to check
+   * @param {string} domain - The domain to match against
+   * @returns {boolean} - True if hostname exactly matches domain
+   */
+  function matchesHostname(hostname, domain) {
+    // Exact match only - prevents substring vulnerabilities
+    return hostname === domain;
+  }
+
   return async (url, options = {}) => {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;
     
-    // Check for custom mock response
+    // Check for custom mock response (exact URL match)
     if (mockResponses[url]) {
       const response = mockResponses[url](options);
       return typeof response === 'function' ? response() : response;
     }
     
-    // Check for hostname-based mock
+    // Check for hostname-based mock (secure domain matching)
     for (const [key, handler] of Object.entries(mockResponses)) {
-      if (hostname.includes(key) || url.includes(key)) {
+      // Try hostname matching first (most secure)
+      if (matchesHostname(hostname, key)) {
         const response = handler(options);
         return typeof response === 'function' ? response() : response;
       }
+      // Fallback: check if key is a full URL and matches
+      try {
+        const keyUrl = new URL(key);
+        if (keyUrl.hostname === hostname && keyUrl.pathname === urlObj.pathname) {
+          const response = handler(options);
+          return typeof response === 'function' ? response() : response;
+        }
+      } catch {
+        // key is not a URL, skip
+      }
     }
     
-    // Use default mock
+    // Use default mock (secure domain matching)
     for (const [key, handler] of Object.entries(defaultResponses)) {
-      if (hostname.includes(key)) {
+      if (matchesHostname(hostname, key)) {
         const response = handler(options);
         return typeof response === 'function' ? response() : response;
       }

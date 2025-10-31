@@ -40,7 +40,13 @@ DEV_CHAT_ID=$(read_dev_var "ADMIN_CHAT_ID")
 if [ -n "$DEV_CHAT_ID" ]; then
     TEST_CHAT_ID="$DEV_CHAT_ID"
     TEST_USER_ID="$DEV_CHAT_ID"
-    echo -e "${GREEN}✓ Using ADMIN_CHAT_ID from .dev.vars: $TEST_CHAT_ID${NC}"
+    # Mask chat ID for security - only show first and last few digits
+    if [ ${#DEV_CHAT_ID} -gt 6 ]; then
+        MASKED_CHAT_ID="${DEV_CHAT_ID:0:3}...${DEV_CHAT_ID: -3}"
+    else
+        MASKED_CHAT_ID="***masked***"
+    fi
+    echo -e "${GREEN}✓ Using ADMIN_CHAT_ID from .dev.vars: $MASKED_CHAT_ID${NC}"
 else
     TEST_CHAT_ID="${TEST_CHAT_ID:-123456789}"
     TEST_USER_ID="${TEST_USER_ID:-123456789}"

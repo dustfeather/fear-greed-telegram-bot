@@ -232,7 +232,15 @@ runner.test('Verify message format includes chart URL', async () => {
   
   await handleScheduled(chatId, env);
   
-  assert(capturedMessage.includes('quickchart.io'), 'Message should include chart URL');
+  // Securely verify chart URL by parsing and checking hostname exactly
+  // Extract URL from Markdown format: [text](URL)
+  const urlMatch = capturedMessage.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
+  assert(urlMatch, 'Message should contain a URL in Markdown format');
+  const chartUrl = urlMatch[1];
+  const urlObj = new URL(chartUrl);
+  // Verify hostname exactly matches (prevents substring vulnerabilities)
+  assert.equal(urlObj.hostname, 'quickchart.io', 'Chart URL hostname should be quickchart.io');
+  
   assert(capturedMessage.includes('50.00%'), 'Message should include score');
   assert(capturedMessage.includes('NEUTRAL'), 'Message should include rating');
 });

@@ -221,9 +221,12 @@ Message: ${commitMessage.split('\n')[0]}
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
+    // Log full error details server-side for debugging (not exposed to client)
+    console.error('Error in handleDeployNotify:', error);
+    // Return generic error message to client (no internal details exposed)
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: 'Internal server error'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
