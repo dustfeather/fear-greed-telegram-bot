@@ -89,6 +89,10 @@ jobs:
       - name: Run TypeScript Type Check
         run: npm run type-check
 
+      - name: Run Tests
+        run: npm test
+        continue-on-error: false
+
       - name: Validate wrangler.jsonc Configuration
         uses: cloudflare/wrangler-action@v3
         with:

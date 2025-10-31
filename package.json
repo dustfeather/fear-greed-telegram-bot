@@ -11,12 +11,15 @@
     "deploy": "wrangler deploy",
     "webhook:setup": "node scripts/setup-telegram-webhook.js",
     "webhook:info": "node scripts/get-telegram-webhook-info.js",
-    "test": "node tests/index.test.js",
+    "test": "node tests/run-all.js",
+    "test:worker": "node tests/worker.test.js",
+    "test:unit": "node tests/run-all.js",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251014.0",
     "@types/node": "^24.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "wrangler": "^4.45.3"
   },
