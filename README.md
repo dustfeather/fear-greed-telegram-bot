@@ -91,7 +91,44 @@ Secrets are managed through the workflow and are never stored in `wrangler.jsonc
 
 For local development, create a `.dev.vars` file (see Installation step 3 above).
 
-### Testing Scheduled Events
+### Testing
+
+#### Manual Testing Scripts
+
+Test all endpoints with the provided scripts:
+
+**Linux/Mac (Bash):**
+```bash
+# Make executable (first time only)
+chmod +x scripts/test-worker.sh
+
+# Run tests against local dev server
+./scripts/test-worker.sh
+
+# Or test against deployed worker
+./scripts/test-worker.sh https://your-worker.workers.dev
+```
+
+**Windows (PowerShell):**
+```powershell
+# Run tests against local dev server
+.\scripts\test-worker.ps1
+
+# Or test against deployed worker
+.\scripts\test-worker.ps1 -WorkerUrl "https://your-worker.workers.dev"
+```
+
+The test scripts will verify:
+- `/start` command
+- `/stop` command
+- `/help` command
+- `/now` command
+- Unknown commands
+- Invalid payloads
+- GET requests (should return 405)
+- Scheduled/cron endpoint
+
+#### Testing Scheduled Events
 
 Test cron triggers locally:
 ```sh
@@ -113,10 +150,10 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
 
 ## Project Structure
 
-- `src/index.js` - Main Worker entry point (HTTP and scheduled handlers)
-- `src/send.js` - Telegram message sending utilities
-- `src/subs.js` - Subscription management (KV storage)
-- `src/sched.js` - Scheduled event handler (Fear & Greed Index fetching)
-- `src/chart.js` - Chart generation using QuickChart
+- `src/index.ts` - Main Worker entry point (HTTP and scheduled handlers)
+- `src/send.ts` - Telegram message sending utilities
+- `src/subs.ts` - Subscription management (KV storage)
+- `src/sched.ts` - Scheduled event handler (Fear & Greed Index fetching)
+- `src/chart.ts` - Chart generation using QuickChart
 - `scripts/generate-wrangler-config.js` - Script to generate wrangler.jsonc from environment variables
 - `.dev.vars.example` - Example file for local development secrets

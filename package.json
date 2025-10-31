@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:config": "node scripts/generate-wrangler-config-local.js",
+    "dev": "npm run dev:config && wrangler dev",
+    "dev:scheduled": "npm run dev:config && wrangler dev --test-scheduled",
+    "start": "npm run dev",
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
     "test": "node tests/index.test.js",
     "type-check": "tsc --noEmit"
   },

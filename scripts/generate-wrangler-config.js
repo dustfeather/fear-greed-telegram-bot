@@ -26,9 +26,24 @@ const config = {
   workers_dev: true,
   send_metrics: true,
   compatibility_flags: ['nodejs_compat'],
-  observability: {
-    enabled: true
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
   },
+  "tail_consumers": [
+    {
+      "service": "cf-tail-worker"
+    }
+  ],
   triggers: {
     crons: ['0 14-21 * * 1-5']
   },
