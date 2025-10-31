@@ -1,4 +1,4 @@
-import type { Env, SendMessageResponse, TelegramApiResponse } from './types.js';
+import type { Env, SendMessageResponse } from './types.js';
 import { API_URLS, MESSAGES, HTTP_HEADERS, RATE_LIMITS } from './constants.js';
 import { enhancedFetch } from './utils/fetch.js';
 import { getErrorMessage } from './utils/errors.js';

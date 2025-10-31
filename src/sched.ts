@@ -5,7 +5,7 @@ import { API_URLS, HTTP_HEADERS, RATINGS } from './constants.js';
 import { enhancedFetch } from './utils/fetch.js';
 import { getCachedFearGreedIndex, cacheFearGreedIndex } from './utils/cache.js';
 import { getChatIds } from './utils/kv.js';
-import { getErrorMessage, toAppError, createApiError } from './utils/errors.js';
+import { toAppError, createApiError } from './utils/errors.js';
 import { isValidFearGreedIndexResponse } from './utils/validation.js';
 
 /**
@@ -34,7 +34,7 @@ async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
   }
 
   // Normalize the response (handle string scores and string timestamps)
-  const obj = data as Record<string, unknown>;
+  const obj = data as unknown as Record<string, unknown>;
   const normalized: FearGreedIndexResponse = {
     rating: obj.rating as string,
     score: typeof obj.score === 'string' 

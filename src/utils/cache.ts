@@ -4,7 +4,6 @@
 
 import type { KVNamespace } from '@cloudflare/workers-types';
 import { KV_KEYS, CACHE_CONFIG } from '../constants.js';
-import { createKVError } from './errors.js';
 import type { FearGreedIndexResponse } from '../types.js';
 
 /**
