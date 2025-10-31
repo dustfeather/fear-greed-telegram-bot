@@ -3,6 +3,7 @@
  */
 export interface Env {
   TELEGRAM_BOT_TOKEN_SECRET: string;
+  TELEGRAM_WEBHOOK_SECRET: string;
   ADMIN_CHAT_ID?: string;
   FEAR_GREED_KV: KVNamespace;
 }
@@ -67,6 +68,18 @@ export interface SubscriptionResult {
   wasSubscribed?: boolean;
   totalSubscribers: number;
   allSubscribers: (number | string)[];
+  error?: string;
+}
+
+/**
+ * Sanitized subscription result (excludes sensitive data)
+ */
+export interface SanitizedSubscriptionResult {
+  success: boolean;
+  chatId: number | string;
+  wasAlreadySubscribed?: boolean;
+  wasSubscribed?: boolean;
+  totalSubscribers: number;
   error?: string;
 }
 

@@ -12,21 +12,31 @@ set -euo pipefail
 WORKER_URL="${1:-http://localhost:8787}"
 
 # Read .dev.vars file if it exists
-read_dev_vars() {
+read_dev_var() {
+    local var_name="$1"
     local dev_vars_file=".dev.vars"
     if [ -f "$dev_vars_file" ]; then
-        # Extract ADMIN_CHAT_ID value, handling comments and whitespace
-        local chat_id=$(grep "^ADMIN_CHAT_ID=" "$dev_vars_file" 2>/dev/null | head -1 | cut -d'=' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || echo "")
-        if [ -n "$chat_id" ]; then
-            echo "$chat_id"
+        # Extract variable value, handling comments and whitespace
+        local value=$(grep "^${var_name}=" "$dev_vars_file" 2>/dev/null | head -1 | cut -d'=' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || echo "")
+        if [ -n "$value" ]; then
+            echo "$value"
             return
         fi
     fi
     echo ""
 }
 
+# Get webhook secret from .dev.vars
+WEBHOOK_SECRET=$(read_dev_var "TELEGRAM_WEBHOOK_SECRET")
+if [ -z "$WEBHOOK_SECRET" ]; then
+    echo -e "${YELLOW}⚠️  TELEGRAM_WEBHOOK_SECRET not found in .dev.vars${NC}"
+    echo -e "${YELLOW}   Webhook requests will fail authentication${NC}"
+else
+    echo -e "${GREEN}✓ Using TELEGRAM_WEBHOOK_SECRET from .dev.vars${NC}"
+fi
+
 # Get chat ID from .dev.vars
-DEV_CHAT_ID=$(read_dev_vars)
+DEV_CHAT_ID=$(read_dev_var "ADMIN_CHAT_ID")
 if [ -n "$DEV_CHAT_ID" ]; then
     TEST_CHAT_ID="$DEV_CHAT_ID"
     TEST_USER_ID="$DEV_CHAT_ID"
@@ -72,11 +82,20 @@ test_post() {
     local test_name="$1"
     local payload="$2"
     local expected_status="${3:-200}"
+    local skip_auth="${4:-false}"
     
     print_test "$test_name"
     
+    # Build curl headers
+    local curl_headers=("-H" "Content-Type: application/json")
+    
+    # Add webhook secret header unless authentication is skipped
+    if [ "$skip_auth" != "true" ] && [ -n "$WEBHOOK_SECRET" ]; then
+        curl_headers+=("-H" "X-Telegram-Bot-Api-Secret-Token: $WEBHOOK_SECRET")
+    fi
+    
     response=$(curl -s -w "\n%{http_code}" -X POST "$WORKER_URL" \
-        -H "Content-Type: application/json" \
+        "${curl_headers[@]}" \
         -d "$payload") || {
         print_failure "Failed to connect to $WORKER_URL"
         return 1
@@ -224,6 +243,9 @@ test_post "POST unknown command" "$(telegram_payload "/unknown")" 200
 
 # Test 6: POST invalid payload
 test_post "POST invalid payload" "$(invalid_payload)" 200
+
+# Test 6b: POST without webhook secret (should return 401)
+test_post "POST without webhook secret (unauthorized)" "$(telegram_payload "/start")" 401 "true"
 
 # Test 7: GET request (should return 405)
 test_get "GET request (Method not allowed)" 405

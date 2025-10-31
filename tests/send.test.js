@@ -2,7 +2,7 @@
  * Send message tests (Telegram API calls)
  */
 
-import { sendTelegramMessage, sendHelpMessage } from '../src/send.js';
+import { sendTelegramMessage, sendHelpMessage, broadcastToAllSubscribers } from '../src/send.js';
 import { TestRunner, createMockEnv, createMockFetch, assertSuccess, assertFailure, assertEqual } from './utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -143,6 +143,194 @@ runner.test('Verify message format uses Markdown', async () => {
   assertEqual(capturedPayload?.parse_mode, 'Markdown', 'Should use Markdown parse mode');
   assertEqual(capturedPayload?.chat_id, chatId, 'Chat ID should match');
   assertEqual(capturedPayload?.text, message, 'Message text should match');
+});
+
+// Test 6: Broadcast to no subscribers
+runner.test('Broadcast to no subscribers', async () => {
+  const env = createMockEnv();
+  const message = 'Test broadcast message';
+  
+  // Ensure no subscribers
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([]));
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 0, 'Should have 0 subscribers');
+  assertEqual(result.successful, 0, 'Should have 0 successful sends');
+  assertEqual(result.failed, 0, 'Should have 0 failed sends');
+  assertEqual(result.errors.length, 0, 'Should have no errors');
+});
+
+// Test 7: Broadcast to single subscriber
+runner.test('Broadcast to single subscriber', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const message = 'Test broadcast message';
+  
+  // Set up one subscriber
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([chatId]));
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 1, 'Should have 1 subscriber');
+  assertEqual(result.successful, 1, 'Should have 1 successful send');
+  assertEqual(result.failed, 0, 'Should have 0 failed sends');
+  assertEqual(result.errors.length, 0, 'Should have no errors');
+  assertEqual(telegramCallCount, 1, 'Should send one message');
+});
+
+// Test 8: Broadcast to multiple subscribers
+runner.test('Broadcast to multiple subscribers', async () => {
+  const env = createMockEnv();
+  const chatIds = [111111111, 222222222, 333333333];
+  const message = 'Test broadcast message';
+  
+  // Set up multiple subscribers
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 3, 'Should have 3 subscribers');
+  assertEqual(result.successful, 3, 'Should have 3 successful sends');
+  assertEqual(result.failed, 0, 'Should have 0 failed sends');
+  assertEqual(result.errors.length, 0, 'Should have no errors');
+  assertEqual(telegramCallCount, 3, 'Should send 3 messages');
+});
+
+// Test 9: Broadcast with partial failures
+runner.test('Broadcast with partial failures', async () => {
+  const env = createMockEnv();
+  const chatIds = [111111111, 222222222, 333333333];
+  const message = 'Test broadcast message';
+  
+  // Set up multiple subscribers
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  
+  let callCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      callCount++;
+      // Fail for chatId 222222222
+      if (callCount === 2) {
+        return {
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+          json: async () => ({
+            ok: false,
+            error_code: 400,
+            description: 'Chat not found'
+          })
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 3, 'Should have 3 subscribers');
+  assertEqual(result.successful, 2, 'Should have 2 successful sends');
+  assertEqual(result.failed, 1, 'Should have 1 failed send');
+  assertEqual(result.errors.length, 1, 'Should have 1 error');
+  assertEqual(result.errors[0].chatId, 222222222, 'Error should be for chatId 222222222');
+});
+
+// Test 10: Broadcast with network errors
+runner.test('Broadcast with network errors', async () => {
+  const env = createMockEnv();
+  const chatIds = [111111111, 222222222];
+  const message = 'Test broadcast message';
+  
+  // Set up multiple subscribers
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  
+  let callCount = 0;
+  const mockFetch = async (url) => {
+    if (url.includes('api.telegram.org')) {
+      callCount++;
+      // Throw error for second call
+      if (callCount === 2) {
+        throw new Error('Network error');
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+    throw new Error('No mock for URL');
+  };
+  
+  global.fetch = mockFetch;
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 2, 'Should have 2 subscribers');
+  assertEqual(result.successful, 1, 'Should have 1 successful send');
+  assertEqual(result.failed, 1, 'Should have 1 failed send');
+  assertEqual(result.errors.length, 1, 'Should have 1 error');
+  assert(result.errors[0].error.includes('Network error'), 'Error should mention network error');
+});
+
+// Test 11: Broadcast handles KV errors
+runner.test('Broadcast handles KV errors', async () => {
+  const env = createMockEnv();
+  const message = 'Test broadcast message';
+  
+  // Create a broken KV that throws errors
+  env.FEAR_GREED_KV = {
+    get: async () => { throw new Error('KV error'); },
+    put: async () => {},
+    delete: async () => {},
+    list: async () => ({ keys: [] })
+  };
+  
+  const result = await broadcastToAllSubscribers(message, env);
+  
+  assertEqual(result.totalSubscribers, 0, 'Should have 0 subscribers');
+  assertEqual(result.successful, 0, 'Should have 0 successful sends');
+  assertEqual(result.failed, 0, 'Should have 0 failed sends');
+  assertEqual(result.errors.length, 1, 'Should have 1 error');
+  assert(result.errors[0].error.includes('KV error'), 'Error should mention KV error');
 });
 
 // Run tests

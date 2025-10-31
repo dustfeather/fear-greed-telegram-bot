@@ -67,3 +67,67 @@ Available commands:
   return await sendTelegramMessage(chatId, helpMessage, env);
 }
 
+/**
+ * Broadcast a message to all subscribed users.
+ * @param message - The message text to send
+ * @param env - Environment variables
+ * @returns Promise resolving to broadcast summary
+ */
+export async function broadcastToAllSubscribers(
+  message: string,
+  env: Env
+): Promise<{ totalSubscribers: number; successful: number; failed: number; errors: Array<{ chatId: number | string; error: string }> }> {
+  try {
+    const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
+    const chatIds: (number | string)[] = chatIdsString ? JSON.parse(chatIdsString) : [];
+    
+    if (chatIds.length === 0) {
+      return {
+        totalSubscribers: 0,
+        successful: 0,
+        failed: 0,
+        errors: []
+      };
+    }
+    
+    const results = await Promise.allSettled(
+      chatIds.map(chatId => sendTelegramMessage(chatId, message, env))
+    );
+    
+    const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const failed = results.length - successful;
+    const errors: Array<{ chatId: number | string; error: string }> = [];
+    
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        errors.push({
+          chatId: chatIds[index],
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+        });
+      } else if (result.status === 'fulfilled' && !result.value.success) {
+        errors.push({
+          chatId: chatIds[index],
+          error: result.value.error || 'Unknown error'
+        });
+      }
+    });
+    
+    return {
+      totalSubscribers: chatIds.length,
+      successful,
+      failed,
+      errors
+    };
+  } catch (error) {
+    return {
+      totalSubscribers: 0,
+      successful: 0,
+      failed: 0,
+      errors: [{
+        chatId: 'unknown',
+        error: error instanceof Error ? error.message : String(error)
+      }]
+    };
+  }
+}
+

@@ -99,6 +99,7 @@ export function createMockFetch(mockResponses = {}) {
 export function createMockEnv(overrides = {}) {
   return {
     TELEGRAM_BOT_TOKEN_SECRET: 'test-bot-token-12345',
+    TELEGRAM_WEBHOOK_SECRET: 'test-webhook-secret-67890',
     ADMIN_CHAT_ID: '999999999',
     FEAR_GREED_KV: createMockKV(),
     ...overrides

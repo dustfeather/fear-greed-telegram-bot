@@ -36,6 +36,7 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
       ```
     - Edit `.dev.vars` and fill in your values:
       - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token (get from [@BotFather](https://t.me/BotFather))
+      - `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
       - `ADMIN_CHAT_ID`: Your chat ID for error notifications (optional)
 
 ## Configuration
@@ -43,6 +44,7 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
 ### Required Environment Variables
 
 - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token from BotFather
+- `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
 - `ADMIN_CHAT_ID`: Chat ID for error notifications (optional but recommended)
 - `FEAR_GREED_KV_NAMESPACE_ID`: KV namespace ID for storing chat IDs
 - `FEAR_GREED_KV_PREVIEW_ID`: KV namespace preview ID for local development (optional)
@@ -67,6 +69,7 @@ This project uses GitHub Actions to dynamically generate `wrangler.jsonc` from r
 
 1. **Set up GitHub Secrets** in your repository settings:
    - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token
+   - `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
    - `ADMIN_CHAT_ID`: Admin chat ID for error notifications
    - `FEAR_GREED_KV_NAMESPACE_ID`: Your production KV namespace ID
    - `FEAR_GREED_KV_PREVIEW_ID`: Your preview KV namespace ID (optional)
@@ -85,9 +88,11 @@ This project uses GitHub Actions to dynamically generate `wrangler.jsonc` from r
 
 #### Cloudflare Secrets API (Current Implementation)
 
-This project uses Cloudflare Secrets API to securely store sensitive values (`TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID`). The GitHub Actions workflow automatically uploads these secrets during deployment using `npx wrangler secret bulk`.
+This project uses Cloudflare Secrets API to securely store sensitive values (`TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID`). The GitHub Actions workflow automatically uploads these secrets during deployment using `npx wrangler secret bulk`.
 
 Secrets are managed through the workflow and are never stored in `wrangler.jsonc`, following Cloudflare's security best practices.
+
+**Security Note:** The `TELEGRAM_WEBHOOK_SECRET` is used to verify that incoming webhook requests are actually from Telegram. This prevents unauthorized access to your bot endpoints.
 
 For local development, create a `.dev.vars` file (see Installation step 3 above).
 

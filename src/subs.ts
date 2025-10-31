@@ -1,4 +1,14 @@
-import type { Env, SubscriptionResult } from './types.js';
+import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from './types.js';
+
+/**
+ * Sanitize subscription result by removing sensitive data.
+ * @param result - The subscription result to sanitize
+ * @returns Sanitized subscription result without allSubscribers
+ */
+export function sanitizeSubscriptionResult(result: SubscriptionResult): SanitizedSubscriptionResult {
+  const { allSubscribers, ...sanitized } = result;
+  return sanitized;
+}
 
 /**
  * Subscribe user to Fear and Greed Index alerts.

@@ -40,6 +40,15 @@ function Read-DevVars {
 # Load dev vars
 $devVars = Read-DevVars
 
+# Get webhook secret from .dev.vars
+$WebhookSecret = $devVars["TELEGRAM_WEBHOOK_SECRET"]
+if ([string]::IsNullOrEmpty($WebhookSecret)) {
+    Write-Host "⚠️  TELEGRAM_WEBHOOK_SECRET not found in .dev.vars" -ForegroundColor Yellow
+    Write-Host "   Webhook requests will fail authentication" -ForegroundColor Yellow
+} else {
+    Write-Host "✓ Using TELEGRAM_WEBHOOK_SECRET from .dev.vars" -ForegroundColor Green
+}
+
 # Use ADMIN_CHAT_ID from .dev.vars if not provided as parameter
 if ([string]::IsNullOrEmpty($TestChatId)) {
     $TestChatId = $devVars["ADMIN_CHAT_ID"]
@@ -55,6 +64,9 @@ if ([string]::IsNullOrEmpty($TestChatId)) {
 if ([string]::IsNullOrEmpty($TestUserId)) {
     $TestUserId = $TestChatId
 }
+
+# Store webhook secret in script scope for Test-Post function
+$script:WebhookSecret = $WebhookSecret
 
 # Test counter
 $script:TESTS_PASSED = 0
@@ -88,14 +100,24 @@ function Test-Post {
     param(
         [string]$TestName,
         [string]$Payload,
-        [int]$ExpectedStatus = 200
+        [int]$ExpectedStatus = 200,
+        [switch]$SkipAuth = $false
     )
     
     Print-Test $TestName
     
     try {
+        $headers = @{
+            "Content-Type" = "application/json"
+        }
+        
+        # Add webhook secret header unless authentication is skipped
+        if (-not $SkipAuth -and -not [string]::IsNullOrEmpty($script:WebhookSecret)) {
+            $headers["X-Telegram-Bot-Api-Secret-Token"] = $script:WebhookSecret
+        }
+        
         $response = Invoke-WebRequest -Uri $WorkerUrl -Method POST -Body $Payload `
-            -ContentType "application/json" -UseBasicParsing -ErrorAction Stop
+            -Headers $headers -UseBasicParsing -ErrorAction Stop
         
         $statusCode = $response.StatusCode
         $body = $response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
@@ -285,6 +307,9 @@ Test-Post "POST unknown command" (Get-TelegramPayload "/unknown") 200
 
 # Test 6: POST invalid payload
 Test-Post "POST invalid payload" (Get-InvalidPayload) 200
+
+# Test 6b: POST without webhook secret (should return 401)
+Test-Post "POST without webhook secret (unauthorized)" (Get-TelegramPayload "/start") 401 -SkipAuth
 
 # Test 7: GET request (should return 405)
 Test-Get "GET request (Method not allowed)" 405

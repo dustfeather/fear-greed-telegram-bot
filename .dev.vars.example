@@ -5,6 +5,11 @@
 # Telegram Bot Token (from @BotFather)
 TELEGRAM_BOT_TOKEN_SECRET=your_telegram_bot_token_here
 
+# Telegram Webhook Secret (for verifying webhook requests)
+# Generate a secure random string (e.g., using openssl rand -hex 32)
+# This secret must match between webhook setup and your Worker environment
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret_here
+
 # Admin Chat ID for error notifications
 # Get your chat ID by sending a message to your bot and checking the update
 ADMIN_CHAT_ID=your_admin_chat_id_here

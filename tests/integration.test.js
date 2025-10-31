@@ -46,7 +46,10 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
   const startUpdate = createTelegramUpdate('/start', chatId);
   const startRequest = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(startUpdate)
   });
   
@@ -61,7 +64,10 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
   const nowUpdate = createTelegramUpdate('/now', chatId);
   const nowRequest = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(nowUpdate)
   });
   
@@ -71,7 +77,10 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
   const stopUpdate = createTelegramUpdate('/stop', chatId);
   const stopRequest = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(stopUpdate)
   });
   
@@ -130,7 +139,10 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
     const update = createTelegramUpdate('/start', chatId);
     const request = new Request('http://localhost:8787', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+      },
       body: JSON.stringify(update)
     });
     await index.fetch(request, env, { waitUntil: () => {} });
@@ -172,7 +184,10 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
   const update1 = createTelegramUpdate('/start', chatId);
   const request1 = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(update1)
   });
   await index.fetch(request1, env, { waitUntil: () => {} });
@@ -180,7 +195,10 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
   const update2 = createTelegramUpdate('/start', chatId);
   const request2 = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(update2)
   });
   await index.fetch(request2, env, { waitUntil: () => {} });
@@ -195,7 +213,10 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
   const update3 = createTelegramUpdate('/stop', chatId);
   const request3 = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(update3)
   });
   await index.fetch(request3, env, { waitUntil: () => {} });
@@ -229,7 +250,10 @@ runner.test('Help command shows all commands', async () => {
   const update = createTelegramUpdate('/help', chatId);
   const request = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(update)
   });
   
@@ -270,7 +294,10 @@ runner.test('Error handling flow', async () => {
   const update = createTelegramUpdate('/now', chatId);
   const request = new Request('http://localhost:8787', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
     body: JSON.stringify(update)
   });
   

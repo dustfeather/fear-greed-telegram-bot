@@ -106,6 +106,7 @@ jobs:
         shell: bash
         env:
           TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
@@ -113,8 +114,8 @@ jobs:
           set -euo pipefail
           
           # Validate required secrets are not empty
-          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ] || [ -z "${ADMIN_CHAT_ID:-}" ]; then
-            echo "❌ Error: TELEGRAM_BOT_TOKEN_SECRET or ADMIN_CHAT_ID is empty"
+          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ] || [ -z "${TELEGRAM_WEBHOOK_SECRET:-}" ] || [ -z "${ADMIN_CHAT_ID:-}" ]; then
+            echo "❌ Error: TELEGRAM_BOT_TOKEN_SECRET, TELEGRAM_WEBHOOK_SECRET, or ADMIN_CHAT_ID is empty"
             exit 1
           fi
           
@@ -145,6 +146,7 @@ jobs:
             const fs = require('fs');
             const secrets = {
               TELEGRAM_BOT_TOKEN_SECRET: process.env.TELEGRAM_BOT_TOKEN_SECRET,
+              TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
               ADMIN_CHAT_ID: process.env.ADMIN_CHAT_ID
             };
             fs.writeFileSync('$SECRETS_FILE', JSON.stringify(secrets, null, 2));
@@ -186,6 +188,7 @@ jobs:
         shell: bash
         env:
           TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           WEBHOOK_URL: ${{ secrets.WORKER_URL }}
         run: |
           set -euo pipefail
@@ -197,6 +200,11 @@ jobs:
             exit 0
           fi
           
+          if [ -z "${TELEGRAM_WEBHOOK_SECRET:-}" ]; then
+            echo "⚠️  Warning: TELEGRAM_WEBHOOK_SECRET not set, skipping webhook setup"
+            exit 0
+          fi
+          
           if [ -z "${WEBHOOK_URL:-}" ]; then
             echo "⚠️  Warning: WORKER_URL secret not set, skipping webhook setup"
             exit 0
@@ -205,3 +213,72 @@ jobs:
           node scripts/setup-telegram-webhook.js "${WEBHOOK_URL}"
           
           echo "✓ Telegram webhook configured successfully"
+
+      - name: Notify Subscribers of Deployment
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITHUB_EVENT_COMMITS_0_MESSAGE: ${{ github.event.commits[0].message }}
+        run: |
+          set +e
+          
+          # Skip if required secrets are not set
+          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ]; then
+            echo "⚠️  Warning: TELEGRAM_BOT_TOKEN_SECRET not set, skipping deployment notification"
+            exit 0
+          fi
+          
+          if [ -z "${WORKER_URL:-}" ]; then
+            echo "⚠️  Warning: WORKER_URL secret not set, skipping deployment notification"
+            exit 0
+          fi
+          
+          # Extract short commit hash (7 characters)
+          COMMIT_HASH="${GITHUB_SHA:0:7}"
+          
+          # Construct GitHub commit URL
+          COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          
+          # Get commit message (prefer head_commit.message, fallback to commits[0].message, then 'Deployment')
+          if [ -n "${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-}" ]; then
+            COMMIT_MSG="${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}"
+          elif [ -n "${GITHUB_EVENT_COMMITS_0_MESSAGE:-}" ]; then
+            COMMIT_MSG="${GITHUB_EVENT_COMMITS_0_MESSAGE}"
+          else
+            COMMIT_MSG="Deployment"
+          fi
+          
+          # Get first line of commit message (remove newlines and trim)
+          COMMIT_MSG=$(echo "${COMMIT_MSG}" | head -n1 | tr '\n' ' ' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          
+          # Send deployment notification
+          echo "Sending deployment notification..."
+          echo "Commit: ${COMMIT_HASH}"
+          echo "Message: ${COMMIT_MSG}"
+          echo "URL: ${COMMIT_URL}"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${WORKER_URL}/deploy-notify" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${TELEGRAM_BOT_TOKEN_SECRET}" \
+            -d "{
+              \"commitHash\": \"${COMMIT_HASH}\",
+              \"commitMessage\": \"${COMMIT_MSG}\",
+              \"commitUrl\": \"${COMMIT_URL}\",
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }")
+          
+          HTTP_CODE=$(echo "${RESPONSE}" | tail -n1)
+          BODY=$(echo "${RESPONSE}" | sed '$d')
+          
+          if [ "${HTTP_CODE}" -eq 200 ]; then
+            echo "✓ Deployment notification sent successfully"
+            echo "Response: ${BODY}"
+          else
+            echo "⚠️  Warning: Deployment notification failed (HTTP ${HTTP_CODE})"
+            echo "Response: ${BODY}"
+          fi
+        continue-on-error: true

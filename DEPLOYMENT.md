@@ -6,6 +6,7 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 
 ### Required Secrets:
 - `TELEGRAM_BOT_TOKEN_SECRET` - Your Telegram bot token from BotFather (stored as Cloudflare Secret)
+- `TELEGRAM_WEBHOOK_SECRET` - A secure random string for verifying webhook requests (stored as Cloudflare Secret). Generate using: `openssl rand -hex 32`
 - `ADMIN_CHAT_ID` - Chat ID for error notifications (stored as Cloudflare Secret)
 - `FEAR_GREED_KV_NAMESPACE_ID` - Production KV namespace ID
 - `CF_API_TOKEN` - Cloudflare API token with Workers permissions
@@ -15,7 +16,9 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 ### Optional Secrets:
 - `FEAR_GREED_KV_PREVIEW_ID` - Preview KV namespace ID (for local development/testing)
 
-**Note:** `TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID` are automatically uploaded to Cloudflare Secrets API during deployment. They are NOT stored in `wrangler.jsonc` for security compliance with Cloudflare best practices.
+**Note:** `TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID` are automatically uploaded to Cloudflare Secrets API during deployment. They are NOT stored in `wrangler.jsonc` for security compliance with Cloudflare best practices.
+
+**Security:** The `TELEGRAM_WEBHOOK_SECRET` is used to verify that incoming webhook requests are actually from Telegram. This prevents unauthorized access to your bot endpoints. The same secret must be configured in both Telegram (via webhook setup) and your Worker environment.
 
 ## Getting Your Cloudflare Account ID
 
@@ -69,6 +72,37 @@ After pushing to the `main` branch:
    - This should show your deployed Worker URL
    - The webhook is automatically set during deployment, so this is just for verification
 
+## Deployment Notifications
+
+When a new version is deployed, the bot automatically sends a notification message to all subscribed Telegram users. The notification includes:
+
+- Git commit hash (short form, 7 characters)
+- Commit message (first line)
+- Clickable link to the GitHub commit
+
+This happens automatically after each successful deployment via the GitHub Actions workflow. No additional configuration is needed beyond the existing secrets:
+
+- `TELEGRAM_BOT_TOKEN_SECRET` - Used for authentication when calling the deployment notification endpoint
+- `WORKER_URL` - Used to make the POST request to the `/deploy-notify` endpoint
+
+The notification step in the workflow is non-blocking - if it fails, the deployment itself is still considered successful. Check the GitHub Actions logs to see if notifications were sent successfully.
+
+### Manual Deployment Notification
+
+If you need to manually trigger a deployment notification, you can make a POST request to the `/deploy-notify` endpoint:
+
+```bash
+curl -X POST "https://your-worker-url.workers.dev/deploy-notify" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TELEGRAM_BOT_TOKEN" \
+  -d '{
+    "commitHash": "abc1234",
+    "commitMessage": "Your commit message",
+    "commitUrl": "https://github.com/owner/repo/commit/fullsha",
+    "timestamp": "2024-01-01T00:00:00Z"
+  }'
+```
+
 ## Troubleshooting
 
 ### Deployment fails with "Invalid API token"
@@ -91,7 +125,7 @@ After pushing to the `main` branch:
 - Check workflow logs for specific error messages
 
 ### Secrets upload fails
-- Verify `TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID` secrets exist in GitHub and are not empty
+- Verify `TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID` secrets exist in GitHub and are not empty
 - Check that `CF_API_TOKEN` has **Workers Secrets: Edit** permission (required for `wrangler secret bulk`)
 - Review workflow logs for detailed error messages from `npx wrangler secret bulk`
 - If secrets already exist, the upload may show warnings but should still succeed
@@ -103,4 +137,12 @@ After pushing to the `main` branch:
 - Check the error message for specific issues in `wrangler.jsonc`
 - Common issues: invalid KV namespace IDs, syntax errors, missing required fields (name, main, compatibility_date)
 - The generated `wrangler.jsonc` is also validated for required fields and non-empty values before the dry-run
+
+### Deployment notification fails
+- The notification step uses `continue-on-error: true`, so deployment failures won't block deployments
+- Check the GitHub Actions logs for the "Notify Subscribers of Deployment" step
+- Verify `TELEGRAM_BOT_TOKEN_SECRET` and `WORKER_URL` secrets are set correctly
+- Ensure the Worker URL is accessible and the `/deploy-notify` endpoint is responding
+- If the endpoint returns 401, verify the token matches `TELEGRAM_BOT_TOKEN_SECRET`
+- If the endpoint returns 400, check that commit information is being extracted correctly from the GitHub event
 

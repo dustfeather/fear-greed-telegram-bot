@@ -45,11 +45,19 @@ function loadDevVars() {
 // Get values
 const devVars = loadDevVars();
 const botToken = process.env.TELEGRAM_BOT_TOKEN_SECRET || devVars.TELEGRAM_BOT_TOKEN_SECRET;
+const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || devVars.TELEGRAM_WEBHOOK_SECRET;
 const webhookUrl = process.argv[2] || process.env.WEBHOOK_URL || devVars.WEBHOOK_URL;
 
 if (!botToken) {
   console.error('❌ Error: TELEGRAM_BOT_TOKEN_SECRET not found');
   console.error('   Set it in .dev.vars or as an environment variable');
+  process.exit(1);
+}
+
+if (!webhookSecret) {
+  console.error('❌ Error: TELEGRAM_WEBHOOK_SECRET not found');
+  console.error('   Set it in .dev.vars or as an environment variable');
+  console.error('   This secret is used to verify webhook requests are from Telegram');
   process.exit(1);
 }
 
@@ -67,6 +75,7 @@ async function setWebhook() {
   console.log('Setting up Telegram webhook...');
   console.log(`Bot Token: ${botToken.substring(0, 10)}...${botToken.substring(botToken.length - 5)}`);
   console.log(`Webhook URL: ${webhookUrl}`);
+  console.log(`Webhook Secret: ${webhookSecret.substring(0, 4)}...${webhookSecret.substring(webhookSecret.length - 4)}`);
   console.log('');
   
   try {
@@ -77,6 +86,7 @@ async function setWebhook() {
       },
       body: JSON.stringify({
         url: webhookUrl,
+        secret_token: webhookSecret,
       }),
     });
     
