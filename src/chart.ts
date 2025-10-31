@@ -1,4 +1,5 @@
 import QuickChart from 'quickchart-js';
+import { CHART_CONFIG } from './constants.js';
 
 /**
  * Generate a pie chart with the Fear and Greed Index data.
@@ -13,8 +14,8 @@ export async function generatePieChart(greedPercentage: string | number): Promis
       datasets: [
         {
           value: greedPercentage,
-          data: [25, 45, 55, 75, 100],
-          backgroundColor: ['#f06c00ff', '#ffb9a180', '#e6e6e6', '#b9ede9', '#8cd6c3'],
+          data: CHART_CONFIG.GAUGE_SEGMENTS,
+          backgroundColor: CHART_CONFIG.GAUGE_COLORS,
           borderWidth: 0
         }
       ]
@@ -32,7 +33,7 @@ export async function generatePieChart(greedPercentage: string | number): Promis
     }
   });
 
-  chart.setWidth(400).setHeight(250);
+  chart.setWidth(CHART_CONFIG.WIDTH).setHeight(CHART_CONFIG.HEIGHT);
 
   return chart.getUrl();
 }

@@ -89,6 +89,10 @@ export interface SanitizedSubscriptionResult {
 export interface FearGreedIndexResponse {
   rating: string;
   score: number;
-  timestamp?: number;
+  timestamp?: number | string;
+  previous_close?: number;
+  previous_1_week?: number;
+  previous_1_month?: number;
+  previous_1_year?: number;
 }
 

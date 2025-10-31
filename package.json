@@ -25,7 +25,6 @@
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.4.0",
-    "node-fetch": "^3.3.2",
     "quickchart-js": "^3.1.3"
   }
 }

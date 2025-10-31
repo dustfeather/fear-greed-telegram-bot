@@ -3,6 +3,8 @@ import { sub, unsub } from './subs.js';
 import { handleScheduled } from './sched.js';
 import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './send.js';
 import type { Env, TelegramUpdate } from './types.js';
+import { COMMANDS, MESSAGES } from './constants.js';
+import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './utils/response.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -89,87 +91,57 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (request.method === 'POST' && pathname === '/') {
     // Verify webhook secret token
     if (!verifyWebhookSecret(request, env)) {
-      return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return unauthorizedResponse();
     }
 
     let update: TelegramUpdate;
     try {
       update = await request.json() as TelegramUpdate;
     } catch (error) {
-      return new Response(JSON.stringify({ ok: false, error: 'Invalid JSON' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return badRequestResponse('Invalid JSON');
     }
 
     // Validate Telegram update structure
     if (!isValidTelegramUpdate(update)) {
       // Return OK for invalid update structures to acknowledge webhook request
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return successResponse();
     }
 
     const message = update.message || update.edited_message;
     if (!message || !message.text) {
       // Return OK for updates without text (e.g., photos, stickers)
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return successResponse();
     }
 
     const chatId = message.chat.id;
     const text = message.text.trim();
 
     try {
-      if (text === '/start') {
+      if (text === COMMANDS.START) {
         await sub(chatId, env);
-        await sendTelegramMessage(chatId, 'You\'ve subscribed to Fear and Greed Index alerts.', env);
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } else if (text === '/stop') {
+        await sendTelegramMessage(chatId, MESSAGES.SUBSCRIBED, env);
+        return successResponse();
+      } else if (text === COMMANDS.STOP) {
         await unsub(chatId, env);
-        await sendTelegramMessage(chatId, 'You\'ve unsubscribed from Fear and Greed Index alerts.', env);
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } else if (text === '/help') {
+        await sendTelegramMessage(chatId, MESSAGES.UNSUBSCRIBED, env);
+        return successResponse();
+      } else if (text === COMMANDS.HELP) {
         await sendHelpMessage(chatId, env);
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } else if (text === '/now') {
+        return successResponse();
+      } else if (text === COMMANDS.NOW) {
         await handleScheduled(chatId, env);
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        return successResponse();
       } else {
         // Unknown command - still return OK to Telegram
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        return successResponse();
       }
     } catch (error) {
       // Log error but don't expose details
       console.error('Error processing command:', error);
-      return new Response(JSON.stringify({ ok: false, error: 'Internal server error' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return errorResponse('Internal server error', 500);
     }
   } else {
-    return new Response('Method not allowed', { status: 405 });
+    return methodNotAllowedResponse();
   }
 }
 
@@ -196,20 +168,14 @@ async function handleDeployNotify(request: Request, env: Env): Promise<Response>
     
     // Validate token
     if (!providedToken || providedToken !== env.TELEGRAM_BOT_TOKEN_SECRET) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid token' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return unauthorizedResponse('Invalid token');
     }
     
     // Extract commit information
     const { commitHash, commitMessage, commitUrl } = body;
     
     if (!commitHash || !commitMessage || !commitUrl) {
-      return new Response(JSON.stringify({ success: false, error: 'Missing required fields: commitHash, commitMessage, commitUrl' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return badRequestResponse('Missing required fields: commitHash, commitMessage, commitUrl');
     }
     
     // Format deployment notification message
@@ -223,24 +189,15 @@ Message: ${commitMessage.split('\n')[0]}
     // Broadcast to all subscribers
     const broadcastResult = await broadcastToAllSubscribers(message, env);
     
-    return new Response(JSON.stringify({
+    return successResponse({
       success: true,
       broadcast: broadcastResult
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
     // Log full error details server-side for debugging (not exposed to client)
     console.error('Error in handleDeployNotify:', error);
     // Return generic error message to client (no internal details exposed)
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Internal server error'
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return errorResponse('Internal server error', 500);
   }
 }
 

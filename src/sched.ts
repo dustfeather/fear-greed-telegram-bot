@@ -1,6 +1,55 @@
 import { generatePieChart } from './chart.js';
 import { sendTelegramMessage } from './send.js';
 import type { Env, FearGreedIndexResponse } from './types.js';
+import { API_URLS, HTTP_HEADERS, RATINGS } from './constants.js';
+import { enhancedFetch } from './utils/fetch.js';
+import { getCachedFearGreedIndex, cacheFearGreedIndex } from './utils/cache.js';
+import { getChatIds } from './utils/kv.js';
+import { getErrorMessage, toAppError, createApiError } from './utils/errors.js';
+import { isValidFearGreedIndexResponse } from './utils/validation.js';
+
+/**
+ * Fetch Fear & Greed Index from API
+ */
+async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
+  const response = await enhancedFetch(API_URLS.FEAR_GREED_INDEX, {
+    method: 'GET',
+    headers: HTTP_HEADERS.CNN_API
+  });
+
+  if (!response.ok) {
+    throw createApiError(
+      `Failed to fetch Fear & Greed Index: ${response.status} ${response.statusText}`,
+      undefined,
+      response.status
+    );
+  }
+
+  const data = await response.json();
+  
+  if (!isValidFearGreedIndexResponse(data)) {
+    // Log the actual response structure for debugging
+    console.error('Invalid Fear & Greed Index response structure. Received:', JSON.stringify(data, null, 2));
+    throw createApiError('Invalid Fear & Greed Index response structure', data);
+  }
+
+  // Normalize the response (handle string scores and string timestamps)
+  const obj = data as Record<string, unknown>;
+  const normalized: FearGreedIndexResponse = {
+    rating: obj.rating as string,
+    score: typeof obj.score === 'string' 
+      ? parseFloat(obj.score)
+      : obj.score as number,
+    timestamp: obj.timestamp as number | string | undefined,
+    // Include optional additional fields if present
+    ...(obj.previous_close !== undefined && { previous_close: typeof obj.previous_close === 'string' ? parseFloat(obj.previous_close) : obj.previous_close as number }),
+    ...(obj.previous_1_week !== undefined && { previous_1_week: typeof obj.previous_1_week === 'string' ? parseFloat(obj.previous_1_week) : obj.previous_1_week as number }),
+    ...(obj.previous_1_month !== undefined && { previous_1_month: typeof obj.previous_1_month === 'string' ? parseFloat(obj.previous_1_month) : obj.previous_1_month as number }),
+    ...(obj.previous_1_year !== undefined && { previous_1_year: typeof obj.previous_1_year === 'string' ? parseFloat(obj.previous_1_year) : obj.previous_1_year as number })
+  };
+
+  return normalized;
+}
 
 /**
  * Handle scheduled event.
@@ -9,54 +58,57 @@ import type { Env, FearGreedIndexResponse } from './types.js';
  * @returns Promise resolving to void
  */
 export async function handleScheduled(chatId: number | string | null = null, env: Env): Promise<void> {
-  // Fetch Fear and Greed Index
-  const url = 'https://production.dataviz.cnn.io/index/fearandgreed/current';
-  const options: RequestInit = {
-    method: 'GET',
-    headers: {
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Accept-Encoding': 'gzip, deflate, br, zstd',
-      'Accept-Language': 'en-US,en;q=0.9,ro;q=0.8',
-      'Cache-Control': 'max-age=0',
-      'Dnt': '1',
-      'Priority': 'u=0, i',
-      'Sec-Ch-Ua': '"Chromium";v="142", "Google Chrome";v="142", "Not_A Brand";v="99"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': '"Windows"',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36'
-    }
-  };
   try {
-    const response = await fetch(url, options);
-    const data = await response.json() as FearGreedIndexResponse;
+    // Try to get cached data first
+    let data = await getCachedFearGreedIndex(env.FEAR_GREED_KV);
+    
+    // If no cache or cache expired, fetch fresh data
+    if (!data) {
+      data = await fetchFearGreedIndex();
+      // Cache the fresh data (non-blocking)
+      cacheFearGreedIndex(env.FEAR_GREED_KV, data).catch(err => {
+        console.error('Failed to cache Fear & Greed Index:', err);
+      });
+    }
+
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
-    let message = '';
-    await generatePieChart(score).then(url => {
-      message = `⚠️ The current [Fear and Greed Index](${url}) rating is ${score}% (*${rating.toUpperCase()}*).`;
-    });
-    if (rating === 'fear' || rating === 'extreme fear') {
-      // Retrieve chat IDs from KV storage
-      const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-      const chatIds: (number | string)[] = chatIdsString ? JSON.parse(chatIdsString) : [];
-      // Send message to all subscribers
-      await Promise.all(chatIds.map(id => sendTelegramMessage(id, message, env)));
-    } else if (chatId) {
-      // Send message to a specific subscriber
-      await sendTelegramMessage(chatId, message, env);
+    
+    // Determine if we need to send message
+    const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) && !chatId;
+    const shouldSendToSpecific = !!chatId;
+    
+    // Only generate chart if we're actually going to send a message
+    if (shouldSendToAll || shouldSendToSpecific) {
+      // Generate chart and build message in parallel
+      const chartUrlPromise = generatePieChart(score);
+      
+      // Build message template (can be done in parallel with chart generation)
+      const ratingText = rating.toUpperCase();
+      const messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
+      
+      // Send messages based on conditions
+      if (shouldSendToAll) {
+        // Retrieve chat IDs from KV storage
+        const chatIds = await getChatIds(env.FEAR_GREED_KV);
+        // Send message to all subscribers (using rate-limited broadcast would be better, but keeping simple for now)
+        await Promise.all(chatIds.map(id => sendTelegramMessage(id, messageTemplate, env)));
+      } else if (shouldSendToSpecific) {
+        // Send message to a specific subscriber
+        await sendTelegramMessage(chatId, messageTemplate, env);
+      }
     }
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    const message = `An error occurred: ${errorMessage}`;
-    console.error(message);
+  } catch (error) {
+    const appError = toAppError(error);
+    const errorMessage = `An error occurred: ${appError.message}`;
+    console.error(errorMessage, appError);
+    
+    // Notify admin if configured
     const adminChatId = env.ADMIN_CHAT_ID;
     if (adminChatId) {
-      await sendTelegramMessage(adminChatId, message, env);
+      await sendTelegramMessage(adminChatId, errorMessage, env).catch(err => {
+        console.error('Failed to notify admin:', err);
+      });
     }
   }
 }

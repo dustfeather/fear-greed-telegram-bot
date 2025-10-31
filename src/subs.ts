@@ -1,4 +1,6 @@
 import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from './types.js';
+import { getChatIds, addChatId, removeChatId } from './utils/kv.js';
+import { getErrorMessage } from './utils/errors.js';
 
 /**
  * Sanitize subscription result by removing sensitive data.
@@ -18,14 +20,8 @@ export function sanitizeSubscriptionResult(result: SubscriptionResult): Sanitize
  */
 export async function sub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-    const chatIds: (number | string)[] = chatIdsString ? JSON.parse(chatIdsString) : [];
-    const wasAlreadySubscribed = chatIds.includes(chatId);
-    
-    if (!wasAlreadySubscribed) {
-      chatIds.push(chatId);
-      await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
-    }
+    const wasAlreadySubscribed = !(await addChatId(env.FEAR_GREED_KV, chatId));
+    const chatIds = await getChatIds(env.FEAR_GREED_KV);
     
     return {
       success: true,
@@ -40,7 +36,7 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
       chatId: chatId,
       totalSubscribers: 0,
       allSubscribers: [],
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
@@ -53,15 +49,8 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
  */
 export async function unsub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-    const chatIds: (number | string)[] = chatIdsString ? JSON.parse(chatIdsString) : [];
-    const index = chatIds.indexOf(chatId);
-    const wasSubscribed = index !== -1;
-    
-    if (wasSubscribed) {
-      chatIds.splice(index, 1);
-      await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
-    }
+    const wasSubscribed = await removeChatId(env.FEAR_GREED_KV, chatId);
+    const chatIds = await getChatIds(env.FEAR_GREED_KV);
     
     return {
       success: true,
@@ -76,7 +65,7 @@ export async function unsub(chatId: number | string, env: Env): Promise<Subscrip
       chatId: chatId,
       totalSubscribers: 0,
       allSubscribers: [],
-      error: error instanceof Error ? error.message : String(error)
+      error: getErrorMessage(error)
     };
   }
 }
