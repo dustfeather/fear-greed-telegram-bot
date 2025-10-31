@@ -1,9 +1,13 @@
-import index from '../src/index.js';
+import index from '../src/index.ts';
 
-const event = {};
+const controller = {
+  cron: '* * * * *',
+  scheduledTime: Date.now(),
+  type: 'scheduled'
+};
 const env = {};
 const ctx = { waitUntil: (promise) => promise };
 
 (async () => {
-  await index.scheduled(event, env, ctx);
+  await index.scheduled(controller, env, ctx);
 })();

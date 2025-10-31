@@ -1,4 +1,6 @@
 name: Deploy to Cloudflare Workers
+permissions:
+  contents: read
 
 on:
   push:
@@ -8,23 +10,196 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Workers
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Substitute Environment Variables
+      - name: Validate Required Secrets
         shell: bash
         run: |
-          sed -e "s|\${FEAR_GREED_KV_NAMESPACE_ID}|${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}|g" \
-              -e "s|\${TELEGRAM_BOT_TOKEN}|${{ secrets.TELEGRAM_BOT_TOKEN }}|g" \
-              wrangler.toml.template > wrangler.toml
+          set -euo pipefail
+          
+          # Check required secrets exist
+          REQUIRED_SECRETS=(
+            "TELEGRAM_BOT_TOKEN_SECRET"
+            "ADMIN_CHAT_ID"
+            "FEAR_GREED_KV_NAMESPACE_ID"
+            "CF_API_TOKEN"
+            "CF_ACCOUNT_ID"
+          )
+          
+          MISSING_SECRETS=()
+          for secret in "${REQUIRED_SECRETS[@]}"; do
+            if [ -z "${!secret:-}" ]; then
+              MISSING_SECRETS+=("$secret")
+            fi
+          done
+          
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo "❌ Error: Missing required secrets:"
+            printf '  - %s\n' "${MISSING_SECRETS[@]}"
+            exit 1
+          fi
+          
+          echo "✓ All required secrets are present"
+        env:
+          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
-      - name: Publish to Cloudflare Workers
+      - name: Generate wrangler.toml from Template
+        shell: bash
+        env:
+          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+          FEAR_GREED_KV_PREVIEW_ID: ${{ secrets.FEAR_GREED_KV_PREVIEW_ID }}
+        run: |
+          set -euo pipefail
+          
+          # Install gettext for envsubst and python3 for TOML validation
+          sudo apt-get update && sudo apt-get install -y gettext-base python3 python3-pip || true
+          
+          # Handle optional preview_id conditionally
+          if [ -n "${FEAR_GREED_KV_PREVIEW_ID:-}" ]; then
+            export FEAR_GREED_KV_PREVIEW_ID_LINE="preview_id = \"${FEAR_GREED_KV_PREVIEW_ID}\""
+          else
+            export FEAR_GREED_KV_PREVIEW_ID_LINE="# preview_id not set"
+          fi
+          
+          # Substitute environment variables
+          export FEAR_GREED_KV_NAMESPACE_ID
+          envsubst '${FEAR_GREED_KV_NAMESPACE_ID} ${FEAR_GREED_KV_PREVIEW_ID_LINE}' < wrangler.toml.template > wrangler.toml
+          
+          # Remove comment line if preview_id was not set
+          if [ -z "${FEAR_GREED_KV_PREVIEW_ID:-}" ]; then
+            sed -i '/^# preview_id not set$/d' wrangler.toml
+          fi
+          
+          # Verify the file was created and is not empty
+          if [ ! -f wrangler.toml ] || [ ! -s wrangler.toml ]; then
+            echo "❌ Error: wrangler.toml was not created or is empty"
+            exit 1
+          fi
+          
+          # Validate that required fields are present
+          if ! grep -q '^name =' wrangler.toml || ! grep -q '^main =' wrangler.toml || ! grep -q '^compatibility_date =' wrangler.toml; then
+            echo "❌ Error: wrangler.toml is missing required fields (name, main, or compatibility_date)"
+            exit 1
+          fi
+          
+          # Validate KV namespace ID is not empty (check for id = with non-empty value)
+          if ! grep -q 'id = "[^"][^"]*"' wrangler.toml; then
+            echo "❌ Error: KV namespace ID appears to be empty or missing in wrangler.toml"
+            exit 1
+          fi
+          
+          echo "✓ wrangler.toml generated and validated successfully"
+          echo "Configuration preview (values redacted):"
+          sed 's/id = ".*"/id = "***REDACTED***"/' wrangler.toml | sed 's/preview_id = ".*"/preview_id = "***REDACTED***"/' || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run TypeScript Type Check
+        run: npm run type-check
+
+      - name: Validate wrangler.toml Configuration
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: .
+          command: deploy --dry-run
+        continue-on-error: false
+
+      - name: Set Cloudflare Secrets
+        shell: bash
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          
+          # Validate required secrets are not empty
+          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ] || [ -z "${ADMIN_CHAT_ID:-}" ]; then
+            echo "❌ Error: TELEGRAM_BOT_TOKEN_SECRET or ADMIN_CHAT_ID is empty"
+            exit 1
+          fi
+          
+          # Create temporary JSON file with secrets
+          SECRETS_FILE=$(mktemp)
+          trap "rm -f '$SECRETS_FILE'" EXIT
+          
+          # Validate file was created successfully
+          if [ ! -f "$SECRETS_FILE" ]; then
+            echo "❌ Error: Failed to create temporary secrets file"
+            exit 1
+          fi
+          
+          cat > "$SECRETS_FILE" <<EOF
+          {
+            "TELEGRAM_BOT_TOKEN_SECRET": "${TELEGRAM_BOT_TOKEN_SECRET}",
+            "ADMIN_CHAT_ID": "${ADMIN_CHAT_ID}"
+          }
+          EOF
+          
+          # Verify JSON file is valid and not empty
+          if [ ! -s "$SECRETS_FILE" ]; then
+            echo "❌ Error: Secrets file is empty"
+            exit 1
+          fi
+          
+          # Upload secrets using wrangler secret bulk
+          # wrangler reads CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID from env
+          # Note: When using stdin redirection (<), the file parameter should not be used
+          echo "Setting Cloudflare secrets..."
+          SECRET_OUTPUT=$(npx wrangler secret bulk < "$SECRETS_FILE" 2>&1)
+          SECRET_EXIT_CODE=$?
+          
+          # Check for errors in output
+          if [ $SECRET_EXIT_CODE -ne 0 ]; then
+            echo "❌ Error: Failed to upload secrets. Exit code: $SECRET_EXIT_CODE"
+            echo "$SECRET_OUTPUT"
+            exit 1
+          fi
+          
+          # Parse output to check for failed uploads
+          if echo "$SECRET_OUTPUT" | grep -q "failed to upload"; then
+            echo "❌ Error: One or more secrets failed to upload"
+            echo "$SECRET_OUTPUT"
+            exit 1
+          fi
+          
+          # Verify success indicators in output
+          if echo "$SECRET_OUTPUT" | grep -q "secrets successfully uploaded"; then
+            SUCCESS_LINE=$(echo "$SECRET_OUTPUT" | grep "secrets successfully uploaded" | head -n1)
+            echo "✓ $SUCCESS_LINE"
+          fi
+          
+          # Check if there are any failures
+          if echo "$SECRET_OUTPUT" | grep -q "Error uploading secret"; then
+            echo "⚠️  Warning: Some secrets may have failed to upload (they might already exist)"
+            echo "$SECRET_OUTPUT"
+          fi
+          
+          echo "$SECRET_OUTPUT"
+          echo "✓ Secrets uploaded successfully"
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: .
+        continue-on-error: false

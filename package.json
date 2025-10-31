@@ -7,13 +7,17 @@
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "test": "node tests/index.test.js"
+    "test": "node tests/index.test.js",
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "wrangler": "^4.45.0"
+    "@cloudflare/workers-types": "^4.20251014.0",
+    "@types/node": "^24.9.2",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.45.3"
   },
   "dependencies": {
-    "@cloudflare/kv-asset-handler": "^0.3.4",
+    "@cloudflare/kv-asset-handler": "^0.4.0",
     "node-fetch": "^3.3.2",
     "quickchart-js": "^3.1.3"
   }
