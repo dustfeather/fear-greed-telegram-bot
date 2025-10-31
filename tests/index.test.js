@@ -257,9 +257,9 @@ runner.test('Invalid payload structure (missing chat)', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
   
-  assertEqual(response.status, 400, 'Response should be 400');
-  assertEqual(result.ok, false, 'Should return ok: false');
-  assert(result.error.includes('Invalid update structure'), 'Should indicate invalid structure');
+  // Return 200 to acknowledge webhook request (Telegram best practice)
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true to acknowledge webhook');
 });
 
 // Test 6c: Invalid JSON payload

@@ -97,8 +97,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
     // Validate Telegram update structure
     if (!isValidTelegramUpdate(update)) {
-      return new Response(JSON.stringify({ ok: false, error: 'Invalid update structure' }), {
-        status: 400,
+      // Return OK for invalid update structures to acknowledge webhook request
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
