@@ -569,7 +569,17 @@ runner.test('/deploy-notify endpoint verifies message format', async () => {
   assert(capturedMessage.includes('abc1234'), 'Message should include commit hash');
   assert(capturedMessage.includes('Test commit'), 'Message should include first line of commit message');
   assert(!capturedMessage.includes('With multiple lines'), 'Message should only include first line');
-  assert(capturedMessage.includes('https://github.com/owner/repo/commit/abc1234567890'), 'Message should include commit URL');
+  
+  // Securely verify commit URL by parsing and checking hostname exactly
+  // Extract URL from Markdown format: [text](URL)
+  const urlMatch = capturedMessage.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
+  assert(urlMatch, 'Message should contain a URL in Markdown format');
+  const commitUrl = urlMatch[1];
+  const urlObj = new URL(commitUrl);
+  // Verify hostname exactly matches (prevents substring vulnerabilities)
+  assert.equal(urlObj.hostname, 'github.com', 'Commit URL hostname should be github.com');
+  // Verify the full URL matches expected format
+  assert.equal(commitUrl, 'https://github.com/owner/repo/commit/abc1234567890', 'Commit URL should match expected value');
 });
 
 // Test 14: /deploy-notify endpoint with no subscribers

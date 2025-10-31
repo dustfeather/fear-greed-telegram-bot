@@ -73,16 +73,10 @@ async function setWebhook() {
   const url = `https://api.telegram.org/bot${botToken}/setWebhook`;
   
   console.log('Setting up Telegram webhook...');
-  // Mask sensitive information - only show minimal characters for verification
-  const maskedToken = botToken.length > 8 
-    ? `${botToken.substring(0, 4)}...${botToken.substring(botToken.length - 4)}`
-    : '***masked***';
-  const maskedSecret = webhookSecret.length > 8
-    ? `${webhookSecret.substring(0, 3)}...${webhookSecret.substring(webhookSecret.length - 3)}`
-    : '***masked***';
-  console.log(`Bot Token: ${maskedToken} (${botToken.length} chars)`);
+  // Don't log sensitive information - only confirm values are present
+  console.log('Bot Token: ***configured***');
   console.log(`Webhook URL: ${webhookUrl}`);
-  console.log(`Webhook Secret: ${maskedSecret} (${webhookSecret.length} chars)`);
+  console.log('Webhook Secret: ***configured***');
   console.log('');
   
   try {
@@ -103,11 +97,7 @@ async function setWebhook() {
       console.log('✅ Webhook set successfully!');
       console.log('');
       console.log('You can verify it by checking webhook info:');
-      // Mask bot token in curl command - only show first and last few characters
-      const maskedToken = botToken.substring(0, 4) + '...' + botToken.substring(botToken.length - 4);
-      console.log(`  curl "https://api.telegram.org/bot${maskedToken}/getWebhookInfo"`);
-      console.log('');
-      console.log('   (Or run: node scripts/get-telegram-webhook-info.js)');
+      console.log('   Run: node scripts/get-telegram-webhook-info.js');
       console.log('');
       console.log('Your bot should now respond to messages in Telegram.');
     } else {
