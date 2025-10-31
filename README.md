@@ -63,7 +63,7 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
 
 #### Using GitHub Actions (Recommended)
 
-This project uses GitHub Actions to dynamically generate `wrangler.toml` from repository secrets. 
+This project uses GitHub Actions to dynamically generate `wrangler.jsonc` from repository secrets. 
 
 1. **Set up GitHub Secrets** in your repository settings:
    - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token
@@ -74,7 +74,7 @@ This project uses GitHub Actions to dynamically generate `wrangler.toml` from re
    - `CF_ACCOUNT_ID`: Your Cloudflare account ID
 
 2. **Configure GitHub Actions** to:
-   - Generate `wrangler.toml` from `wrangler.toml.template` using secrets
+   - Generate `wrangler.jsonc` from environment variables using the generation script
    - Deploy using `wrangler deploy`
 
 3. **Create KV Namespaces** (if not already created):
@@ -87,7 +87,7 @@ This project uses GitHub Actions to dynamically generate `wrangler.toml` from re
 
 This project uses Cloudflare Secrets API to securely store sensitive values (`TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID`). The GitHub Actions workflow automatically uploads these secrets during deployment using `npx wrangler secret bulk`.
 
-Secrets are managed through the workflow and are never stored in `wrangler.toml`, following Cloudflare's security best practices.
+Secrets are managed through the workflow and are never stored in `wrangler.jsonc`, following Cloudflare's security best practices.
 
 For local development, create a `.dev.vars` file (see Installation step 3 above).
 
@@ -118,5 +118,5 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
 - `src/subs.js` - Subscription management (KV storage)
 - `src/sched.js` - Scheduled event handler (Fear & Greed Index fetching)
 - `src/chart.js` - Chart generation using QuickChart
-- `wrangler.toml.template` - Template for generating production config
+- `scripts/generate-wrangler-config.js` - Script to generate wrangler.jsonc from environment variables
 - `.dev.vars.example` - Example file for local development secrets

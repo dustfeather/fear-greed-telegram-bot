@@ -51,7 +51,13 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
-      - name: Generate wrangler.toml from Template
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Generate wrangler.jsonc Configuration
         shell: bash
         env:
           FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
@@ -59,52 +65,23 @@ jobs:
         run: |
           set -euo pipefail
           
-          # Install gettext for envsubst and python3 for TOML validation
-          sudo apt-get update && sudo apt-get install -y gettext-base python3 python3-pip || true
-          
-          # Handle optional preview_id conditionally
-          if [ -n "${FEAR_GREED_KV_PREVIEW_ID:-}" ]; then
-            export FEAR_GREED_KV_PREVIEW_ID_LINE="preview_id = \"${FEAR_GREED_KV_PREVIEW_ID}\""
-          else
-            export FEAR_GREED_KV_PREVIEW_ID_LINE="# preview_id not set"
-          fi
-          
-          # Substitute environment variables
-          export FEAR_GREED_KV_NAMESPACE_ID
-          envsubst '${FEAR_GREED_KV_NAMESPACE_ID} ${FEAR_GREED_KV_PREVIEW_ID_LINE}' < wrangler.toml.template > wrangler.toml
-          
-          # Remove comment line if preview_id was not set
-          if [ -z "${FEAR_GREED_KV_PREVIEW_ID:-}" ]; then
-            sed -i '/^# preview_id not set$/d' wrangler.toml
-          fi
+          # Generate wrangler.jsonc from environment variables using Node.js script
+          node scripts/generate-wrangler-config.js
           
           # Verify the file was created and is not empty
-          if [ ! -f wrangler.toml ] || [ ! -s wrangler.toml ]; then
-            echo "❌ Error: wrangler.toml was not created or is empty"
+          if [ ! -f wrangler.jsonc ] || [ ! -s wrangler.jsonc ]; then
+            echo "❌ Error: wrangler.jsonc was not created or is empty"
             exit 1
           fi
           
-          # Validate that required fields are present
-          if ! grep -q '^name =' wrangler.toml || ! grep -q '^main =' wrangler.toml || ! grep -q '^compatibility_date =' wrangler.toml; then
-            echo "❌ Error: wrangler.toml is missing required fields (name, main, or compatibility_date)"
+          # Validate JSONC syntax
+          if ! node -e "require('fs').readFileSync('wrangler.jsonc', 'utf8'); JSON.parse(require('fs').readFileSync('wrangler.jsonc', 'utf8').replace(/\/\/.*/g, ''));" > /dev/null 2>&1; then
+            echo "❌ Error: wrangler.jsonc contains invalid JSON syntax"
             exit 1
           fi
           
-          # Validate KV namespace ID is not empty (check for id = with non-empty value)
-          if ! grep -q 'id = "[^"][^"]*"' wrangler.toml; then
-            echo "❌ Error: KV namespace ID appears to be empty or missing in wrangler.toml"
-            exit 1
-          fi
-          
-          echo "✓ wrangler.toml generated and validated successfully"
           echo "Configuration preview (values redacted):"
-          sed 's/id = ".*"/id = "***REDACTED***"/' wrangler.toml | sed 's/preview_id = ".*"/preview_id = "***REDACTED***"/' || true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+          sed 's/"id":\s*"[^"]*"/"id": "***REDACTED***"/' wrangler.jsonc | sed 's/"preview_id":\s*"[^"]*"/"preview_id": "***REDACTED***"/' || true
 
       - name: Install Dependencies
         run: npm ci
@@ -112,7 +89,7 @@ jobs:
       - name: Run TypeScript Type Check
         run: npm run type-check
 
-      - name: Validate wrangler.toml Configuration
+      - name: Validate wrangler.jsonc Configuration
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
@@ -137,6 +114,18 @@ jobs:
             exit 1
           fi
           
+          # Validate wrangler.jsonc exists
+          if [ ! -f "wrangler.jsonc" ]; then
+            echo "❌ Error: wrangler.jsonc not found. Make sure it was generated in the previous step."
+            exit 1
+          fi
+          
+          # Validate Cloudflare credentials are set
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "❌ Error: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is empty"
+            exit 1
+          fi
+          
           # Create temporary JSON file with secrets
           SECRETS_FILE=$(mktemp)
           trap "rm -f '$SECRETS_FILE'" EXIT
@@ -147,12 +136,15 @@ jobs:
             exit 1
           fi
           
-          cat > "$SECRETS_FILE" <<EOF
-          {
-            "TELEGRAM_BOT_TOKEN_SECRET": "${TELEGRAM_BOT_TOKEN_SECRET}",
-            "ADMIN_CHAT_ID": "${ADMIN_CHAT_ID}"
-          }
-          EOF
+          # Write JSON file with proper escaping using Node.js
+          node -e "
+            const fs = require('fs');
+            const secrets = {
+              TELEGRAM_BOT_TOKEN_SECRET: process.env.TELEGRAM_BOT_TOKEN_SECRET,
+              ADMIN_CHAT_ID: process.env.ADMIN_CHAT_ID
+            };
+            fs.writeFileSync('$SECRETS_FILE', JSON.stringify(secrets, null, 2));
+          "
           
           # Verify JSON file is valid and not empty
           if [ ! -s "$SECRETS_FILE" ]; then
@@ -160,40 +152,22 @@ jobs:
             exit 1
           fi
           
+          # Verify JSON is valid
+          if ! node -e "require('fs').readFileSync('$SECRETS_FILE', 'utf8'); JSON.parse(require('fs').readFileSync('$SECRETS_FILE', 'utf8'));" > /dev/null 2>&1; then
+            echo "❌ Error: Secrets file contains invalid JSON"
+            exit 1
+          fi
+          
           # Upload secrets using wrangler secret bulk
           # wrangler reads CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID from env
-          # Note: When using stdin redirection (<), the file parameter should not be used
           echo "Setting Cloudflare secrets..."
-          SECRET_OUTPUT=$(npx wrangler secret bulk < "$SECRETS_FILE" 2>&1)
-          SECRET_EXIT_CODE=$?
+          echo "Worker name from wrangler.jsonc:"
+          node -e "try { const config = JSON.parse(require('fs').readFileSync('wrangler.jsonc', 'utf8').replace(/\/\/.*/g, '')); console.log(config.name || 'Not found'); } catch(e) { console.log('Warning: Could not find worker name in wrangler.jsonc'); }" || echo "Warning: Could not find worker name in wrangler.jsonc"
           
-          # Check for errors in output
-          if [ $SECRET_EXIT_CODE -ne 0 ]; then
-            echo "❌ Error: Failed to upload secrets. Exit code: $SECRET_EXIT_CODE"
-            echo "$SECRET_OUTPUT"
-            exit 1
-          fi
+          # Use filename directly instead of stdin redirection for better compatibility
+          # With set -e, the script will exit if this command fails
+          npx wrangler secret bulk "$SECRETS_FILE"
           
-          # Parse output to check for failed uploads
-          if echo "$SECRET_OUTPUT" | grep -q "failed to upload"; then
-            echo "❌ Error: One or more secrets failed to upload"
-            echo "$SECRET_OUTPUT"
-            exit 1
-          fi
-          
-          # Verify success indicators in output
-          if echo "$SECRET_OUTPUT" | grep -q "secrets successfully uploaded"; then
-            SUCCESS_LINE=$(echo "$SECRET_OUTPUT" | grep "secrets successfully uploaded" | head -n1)
-            echo "✓ $SUCCESS_LINE"
-          fi
-          
-          # Check if there are any failures
-          if echo "$SECRET_OUTPUT" | grep -q "Error uploading secret"; then
-            echo "⚠️  Warning: Some secrets may have failed to upload (they might already exist)"
-            echo "$SECRET_OUTPUT"
-          fi
-          
-          echo "$SECRET_OUTPUT"
           echo "✓ Secrets uploaded successfully"
 
       - name: Deploy to Cloudflare Workers

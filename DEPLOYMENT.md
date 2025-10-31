@@ -14,7 +14,7 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 ### Optional Secrets:
 - `FEAR_GREED_KV_PREVIEW_ID` - Preview KV namespace ID (for local development/testing)
 
-**Note:** `TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID` are automatically uploaded to Cloudflare Secrets API during deployment. They are NOT stored in `wrangler.toml` for security compliance with Cloudflare best practices.
+**Note:** `TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID` are automatically uploaded to Cloudflare Secrets API during deployment. They are NOT stored in `wrangler.jsonc` for security compliance with Cloudflare best practices.
 
 ## Getting Your Cloudflare Account ID
 
@@ -77,9 +77,10 @@ After pushing to the `main` branch:
 - Verify `FEAR_GREED_KV_NAMESPACE_ID` matches your actual KV namespace ID
 - Ensure the namespace exists in your Cloudflare account
 
-### Template substitution fails
+### Configuration generation fails
 - Check all required secrets are set in GitHub
 - Verify secret names match exactly (case-sensitive)
+- Ensure `FEAR_GREED_KV_NAMESPACE_ID` is set (required)
 - Check workflow logs for specific error messages
 
 ### Secrets upload fails
@@ -87,12 +88,12 @@ After pushing to the `main` branch:
 - Check that `CF_API_TOKEN` has **Workers Secrets: Edit** permission (required for `wrangler secret bulk`)
 - Review workflow logs for detailed error messages from `npx wrangler secret bulk`
 - If secrets already exist, the upload may show warnings but should still succeed
-- Check that the generated `wrangler.toml` file is valid before secrets are uploaded
+- Check that the generated `wrangler.jsonc` file is valid before secrets are uploaded
 
 ### Configuration validation fails
-- The workflow validates `wrangler.toml` before deployment using `wrangler deploy --dry-run`
+- The workflow validates `wrangler.jsonc` before deployment using `wrangler deploy --dry-run`
 - This catches configuration errors before deployment
-- Check the error message for specific issues in `wrangler.toml`
+- Check the error message for specific issues in `wrangler.jsonc`
 - Common issues: invalid KV namespace IDs, syntax errors, missing required fields (name, main, compatibility_date)
-- The generated `wrangler.toml` is also validated for required fields and non-empty values before the dry-run
+- The generated `wrangler.jsonc` is also validated for required fields and non-empty values before the dry-run
 
