@@ -21,7 +21,7 @@ runner.test('Fetch Fear and Greed Index successfully', async () => {
       json: async () => ({
         rating: 'Neutral',
         score: 50.5,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -62,7 +62,7 @@ runner.test('Send to all subscribers on fear rating', async () => {
       json: async () => ({
         rating: 'Fear',
         score: 25.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -102,7 +102,7 @@ runner.test('Send to all subscribers on extreme fear rating', async () => {
       json: async () => ({
         rating: 'Extreme Fear',
         score: 10.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -170,7 +170,7 @@ runner.test('Don\'t send when rating is neutral and no specific chat', async () 
       json: async () => ({
         rating: 'Greed',
         score: 75.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -209,7 +209,7 @@ runner.test('Verify message format includes chart URL', async () => {
       json: async () => ({
         rating: 'Neutral',
         score: 50.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({

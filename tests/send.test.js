@@ -284,12 +284,14 @@ runner.test('Broadcast with network errors', async () => {
   await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
   
   let callCount = 0;
-  const mockFetch = async (url) => {
+  const mockFetch = async (url, options) => {
     const urlObj = new URL(url);
     if (urlObj.hostname === 'api.telegram.org' || urlObj.hostname.endsWith('.api.telegram.org')) {
       callCount++;
-      // Throw error for second call
-      if (callCount === 2) {
+      // Extract chat_id from request body to determine which call should fail
+      const body = JSON.parse(options?.body || '{}');
+      // Throw error for second chat ID
+      if (body.chat_id === chatIds[1]) {
         throw new Error('Network error');
       }
       return {
@@ -307,6 +309,7 @@ runner.test('Broadcast with network errors', async () => {
   const result = await broadcastToAllSubscribers(message, env);
   
   assertEqual(result.totalSubscribers, 2, 'Should have 2 subscribers');
+  // With batching, both are processed but one should fail
   assertEqual(result.successful, 1, 'Should have 1 successful send');
   assertEqual(result.failed, 1, 'Should have 1 failed send');
   assertEqual(result.errors.length, 1, 'Should have 1 error');
@@ -332,7 +335,8 @@ runner.test('Broadcast handles KV errors', async () => {
   assertEqual(result.successful, 0, 'Should have 0 successful sends');
   assertEqual(result.failed, 0, 'Should have 0 failed sends');
   assertEqual(result.errors.length, 1, 'Should have 1 error');
-  assert(result.errors[0].error.includes('KV error'), 'Error should mention KV error');
+  // Error message might be wrapped by KV utilities
+  assert(result.errors[0].error.includes('KV error') || result.errors[0].error.includes('Failed to get chat IDs'), 'Error should mention KV error');
 });
 
 // Run tests

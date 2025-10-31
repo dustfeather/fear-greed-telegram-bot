@@ -21,7 +21,7 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
       json: async () => ({
         rating: 'Neutral',
         score: 50.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -113,7 +113,7 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
       json: async () => ({
         rating: 'Fear',
         score: 25.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({

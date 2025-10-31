@@ -51,8 +51,12 @@ export function createMockFetch(mockResponses = {}) {
       statusText: 'OK',
       json: async () => ({
         rating: 'Neutral',
-        score: 50,
-        timestamp: Date.now()
+        score: 50.0,
+        timestamp: new Date().toISOString(),
+        previous_close: 48.5,
+        previous_1_week: 52.0,
+        previous_1_month: 45.0,
+        previous_1_year: 55.0
       })
     }),
     'quickchart.io': () => ({

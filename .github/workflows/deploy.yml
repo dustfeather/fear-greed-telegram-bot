@@ -222,7 +222,6 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_EVENT_HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-          GITHUB_EVENT_COMMITS_0_MESSAGE: ${{ github.event.commits[0].message }}
         run: |
           set +e
           
@@ -243,11 +242,9 @@ jobs:
           # Construct GitHub commit URL
           COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           
-          # Get commit message (prefer head_commit.message, fallback to commits[0].message, then 'Deployment')
+          # Get commit message (prefer head_commit.message, fallback to 'Deployment')
           if [ -n "${GITHUB_EVENT_HEAD_COMMIT_MESSAGE:-}" ]; then
             COMMIT_MSG="${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}"
-          elif [ -n "${GITHUB_EVENT_COMMITS_0_MESSAGE:-}" ]; then
-            COMMIT_MSG="${GITHUB_EVENT_COMMITS_0_MESSAGE}"
           else
             COMMIT_MSG="Deployment"
           fi

@@ -154,7 +154,7 @@ runner.test('/now command', async () => {
       json: async () => ({
         rating: 'Neutral',
         score: 50.0,
-        timestamp: Date.now()
+        timestamp: new Date().toISOString()
       })
     }),
     'quickchart.io': () => ({
@@ -356,7 +356,7 @@ runner.test('Scheduled handler executes on weekday', async () => {
         json: async () => ({
           rating: 'Neutral',
           score: 50.0,
-          timestamp: Date.now()
+          timestamp: new Date().toISOString()
         })
       };
     }
@@ -421,7 +421,7 @@ runner.test('Scheduled handler skips on weekend', async () => {
         json: async () => ({
           rating: 'Neutral',
           score: 50.0,
-          timestamp: Date.now()
+          timestamp: new Date().toISOString()
         })
       };
     }
@@ -585,7 +585,7 @@ runner.test('/deploy-notify endpoint with invalid token', async () => {
   const result = await response.json();
   
   assertEqual(response.status, 401, 'Response should be 401');
-  assertEqual(result.success, false, 'Should fail');
+  assertEqual(result.ok, false, 'Should fail');
   assertEqual(result.error, 'Invalid token', 'Should indicate invalid token');
 });
 
@@ -609,7 +609,7 @@ runner.test('/deploy-notify endpoint missing required fields', async () => {
   const result = await response.json();
   
   assertEqual(response.status, 400, 'Response should be 400');
-  assertEqual(result.success, false, 'Should fail');
+  assertEqual(result.ok, false, 'Should fail');
   assert(result.error.includes('Missing required fields'), 'Should indicate missing fields');
 });
 
