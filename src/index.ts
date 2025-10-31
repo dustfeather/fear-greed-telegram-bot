@@ -6,7 +6,17 @@ import type { Env, TelegramUpdate } from './types.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(handleScheduled(null, env));
+    // Additional safeguard: only run on weekdays (Monday-Friday)
+    // getDay() returns 0 (Sunday) through 6 (Saturday)
+    const now = new Date();
+    const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // Only proceed if it's a weekday (Monday = 1 through Friday = 5)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      ctx.waitUntil(handleScheduled(null, env));
+    } else {
+      console.log(`Skipping scheduled execution - not a weekday (day: ${dayOfWeek})`);
+    }
   },
   async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     return handleRequest(request, env);

@@ -342,8 +342,8 @@ runner.test('GET request (Method not allowed)', async () => {
   assertEqual(text, 'Method not allowed', 'Should return method not allowed message');
 });
 
-// Test 8: Scheduled handler
-runner.test('Scheduled handler', async () => {
+// Test 8: Scheduled handler on weekday
+runner.test('Scheduled handler executes on weekday', async () => {
   const env = createMockEnv();
   let scheduledExecuted = false;
   
@@ -364,24 +364,112 @@ runner.test('Scheduled handler', async () => {
   
   global.fetch = mockFetch;
   
-  const controller = {
-    cron: '0 14-21 * * 1-5',
-    scheduledTime: Date.now(),
-    type: 'scheduled'
-  };
-  
-  const ctx = {
-    waitUntil: (promise) => {
-      promise.then(() => {}).catch(() => {});
+  // Mock Date to return a known weekday (Monday, January 1, 2024)
+  const originalDate = global.Date;
+  const mockDate = class extends Date {
+    constructor(...args) {
+      if (args.length === 0) {
+        super('2024-01-01T14:00:00Z'); // Monday
+      } else {
+        super(...args);
+      }
+    }
+    static now() {
+      return new Date('2024-01-01T14:00:00Z').getTime();
     }
   };
+  // Copy static methods
+  Object.setPrototypeOf(mockDate, originalDate);
+  Object.defineProperty(global, 'Date', { value: mockDate, writable: true, configurable: true });
   
-  await index.scheduled(controller, env, ctx);
+  try {
+    const controller = {
+      cron: '0 14-21 * * 1-5',
+      scheduledTime: Date.now(),
+      type: 'scheduled'
+    };
+    
+    const ctx = {
+      waitUntil: (promise) => {
+        promise.then(() => {}).catch(() => {});
+      }
+    };
+    
+    await index.scheduled(controller, env, ctx);
+    
+    // Give it a moment to execute
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    assert(scheduledExecuted, 'Scheduled handler should execute on weekday');
+  } finally {
+    // Restore original Date
+    global.Date = originalDate;
+  }
+});
+
+// Test 8b: Scheduled handler skips on weekend
+runner.test('Scheduled handler skips on weekend', async () => {
+  const env = createMockEnv();
+  let scheduledExecuted = false;
   
-  // Give it a moment to execute
-  await new Promise(resolve => setTimeout(resolve, 100));
+  const mockFetch = createMockFetch({
+    'production.dataviz.cnn.io': () => {
+      scheduledExecuted = true;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          rating: 'Neutral',
+          score: 50.0,
+          timestamp: Date.now()
+        })
+      };
+    }
+  });
   
-  assert(scheduledExecuted, 'Scheduled handler should execute');
+  global.fetch = mockFetch;
+  
+  // Mock Date to return a known weekend day (Saturday, January 6, 2024)
+  const originalDate = global.Date;
+  const mockDate = class extends Date {
+    constructor(...args) {
+      if (args.length === 0) {
+        super('2024-01-06T14:00:00Z'); // Saturday
+      } else {
+        super(...args);
+      }
+    }
+    static now() {
+      return new Date('2024-01-06T14:00:00Z').getTime();
+    }
+  };
+  // Copy static methods
+  Object.setPrototypeOf(mockDate, originalDate);
+  Object.defineProperty(global, 'Date', { value: mockDate, writable: true, configurable: true });
+  
+  try {
+    const controller = {
+      cron: '0 14-21 * * 1-5',
+      scheduledTime: Date.now(),
+      type: 'scheduled'
+    };
+    
+    const ctx = {
+      waitUntil: (promise) => {
+        promise.then(() => {}).catch(() => {});
+      }
+    };
+    
+    await index.scheduled(controller, env, ctx);
+    
+    // Give it a moment - should not execute
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    assert(!scheduledExecuted, 'Scheduled handler should NOT execute on weekend');
+  } finally {
+    // Restore original Date
+    global.Date = originalDate;
+  }
 });
 
 // Test 9: /deploy-notify endpoint with valid token (Authorization header)
