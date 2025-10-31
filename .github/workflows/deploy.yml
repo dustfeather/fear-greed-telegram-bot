@@ -177,3 +177,27 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           workingDirectory: .
         continue-on-error: false
+
+      - name: Set Telegram Webhook
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          WEBHOOK_URL: ${{ secrets.WORKER_URL }}
+        run: |
+          set -euo pipefail
+          
+          # Set webhook after deployment
+          # Note: This is idempotent - safe to run on every deployment
+          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ]; then
+            echo "⚠️  Warning: TELEGRAM_BOT_TOKEN_SECRET not set, skipping webhook setup"
+            exit 0
+          fi
+          
+          if [ -z "${WEBHOOK_URL:-}" ]; then
+            echo "⚠️  Warning: WORKER_URL secret not set, skipping webhook setup"
+            exit 0
+          fi
+          
+          node scripts/setup-telegram-webhook.js "${WEBHOOK_URL}"
+          
+          echo "✓ Telegram webhook configured successfully"

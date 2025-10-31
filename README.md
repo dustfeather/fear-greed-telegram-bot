@@ -138,15 +138,40 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
 
 ## Usage
 
-1. Start the bot:
+1. **Deploy your bot** (if not already deployed):
    ```sh
-   npm start
+   npm run deploy
    ```
 
-2. Set up your Telegram webhook (if not using Cloudflare Workers routes):
-   - The bot responds to webhook POST requests at the Worker's endpoint
+2. **Telegram webhook** (required for Telegram to send updates to your bot):
+   
+   **Automatic Setup (Recommended):**
+   - The webhook is automatically configured during CI/CD deployment via GitHub Actions
+   - No manual setup needed after initial deployment
+   - The webhook is updated automatically on every deployment to ensure it always points to the correct URL
+   
+   **Manual Setup (if needed):**
+   ```sh
+   # Set webhook to your deployed worker (replace with your actual Worker URL)
+   npm run webhook:setup -- https://your-worker-name.your-subdomain.workers.dev
+   
+   # Check webhook status
+   npm run webhook:info
+   
+   # Remove webhook (if needed)
+   npm run webhook:setup -- ""
+   ```
 
-3. Interact with the bot on Telegram using the commands listed above.
+   **Important:** The webhook must be set up for Telegram to deliver messages to your bot. Without it, commands sent directly in Telegram won't reach your worker. The webhook setup is now automated in CI/CD, so you typically only need to set it manually if:
+   - You're deploying manually (not using GitHub Actions)
+   - Your Worker URL changes
+   - You need to remove or change the webhook
+
+3. **Interact with the bot** in Telegram using the commands:
+   - `/start` - Subscribe to alerts
+   - `/stop` - Unsubscribe
+   - `/help` - Show help
+   - `/now` - Get current index
 
 ## Project Structure
 

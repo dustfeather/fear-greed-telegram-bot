@@ -9,6 +9,8 @@
     "dev:scheduled": "npm run dev:config && wrangler dev --test-scheduled",
     "start": "npm run dev",
     "deploy": "wrangler deploy",
+    "webhook:setup": "node scripts/setup-telegram-webhook.js",
+    "webhook:info": "node scripts/get-telegram-webhook-info.js",
     "test": "node tests/index.test.js",
     "type-check": "tsc --noEmit"
   },

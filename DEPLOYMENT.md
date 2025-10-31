@@ -10,6 +10,7 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 - `FEAR_GREED_KV_NAMESPACE_ID` - Production KV namespace ID
 - `CF_API_TOKEN` - Cloudflare API token with Workers permissions
 - `CF_ACCOUNT_ID` - Your Cloudflare account ID
+- `WORKER_URL` - Your deployed Worker URL (e.g., `https://fear-greed-telegram-bot.your-subdomain.workers.dev`) - used for Telegram webhook setup
 
 ### Optional Secrets:
 - `FEAR_GREED_KV_PREVIEW_ID` - Preview KV namespace ID (for local development/testing)
@@ -56,11 +57,17 @@ The output will show the namespace IDs. Add them to GitHub secrets.
 After pushing to the `main` branch:
 
 1. Check GitHub Actions tab to see deployment progress
-   - The workflow will validate secrets, generate config, validate config, set secrets, and deploy
+   - The workflow will validate secrets, generate config, validate config, set secrets, deploy, and set the Telegram webhook
 2. Once deployed, verify in Cloudflare Dashboard:
    - Workers & Pages → Your worker should be listed
    - Settings → Triggers → Cron Triggers should show your schedule
    - Settings → Variables and Secrets → Verify secrets (`TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID`) are listed as "Secret" type (not plaintext vars)
+3. Verify Telegram webhook (optional):
+   ```bash
+   npm run webhook:info
+   ```
+   - This should show your deployed Worker URL
+   - The webhook is automatically set during deployment, so this is just for verification
 
 ## Troubleshooting
 
