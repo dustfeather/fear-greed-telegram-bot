@@ -25,6 +25,3 @@ jspm_packages/
 .wrangler/
 wrangler.toml
 wrangler.jsonc
-
-# Editor directories
-.cursor/

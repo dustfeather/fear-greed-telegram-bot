@@ -8,6 +8,49 @@ import assert from 'node:assert';
 
 const runner = new TestRunner();
 
+// Helper to create mock market data response
+function createMockMarketData(currentPrice = 400, days = 200) {
+  const timestamps = [];
+  const closes = [];
+  const opens = [];
+  const highs = [];
+  const lows = [];
+  const volumes = [];
+  
+  const baseTime = Math.floor(Date.now() / 1000);
+  
+  for (let i = 0; i < days; i++) {
+    const price = currentPrice - (days - i) * 0.5; // Slight upward trend
+    timestamps.push(baseTime - (days - i) * 86400);
+    closes.push(price);
+    opens.push(price * 0.999);
+    highs.push(price * 1.01);
+    lows.push(price * 0.99);
+    volumes.push(1000000);
+  }
+  
+  return {
+    chart: {
+      result: [{
+        meta: {
+          regularMarketPrice: currentPrice
+        },
+        timestamp: timestamps,
+        indicators: {
+          quote: [{
+            open: opens,
+            high: highs,
+            low: lows,
+            close: closes,
+            volume: volumes
+          }]
+        }
+      }],
+      error: null
+    }
+  };
+}
+
 // Test 1: /start command
 runner.test('/start command', async () => {
   const env = createMockEnv();
@@ -156,6 +199,11 @@ runner.test('/now command', async () => {
         score: 50.0,
         timestamp: new Date().toISOString()
       })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
     }),
     'quickchart.io': () => ({
       ok: true,
@@ -359,7 +407,17 @@ runner.test('Scheduled handler executes on weekday', async () => {
           timestamp: new Date().toISOString()
         })
       };
-    }
+    },
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
+    'quickchart.io': () => ({
+      ok: true,
+      status: 200,
+      url: 'https://quickchart.io/chart?c=...'
+    })
   });
   
   global.fetch = mockFetch;
@@ -424,7 +482,17 @@ runner.test('Scheduled handler skips on weekend', async () => {
           timestamp: new Date().toISOString()
         })
       };
-    }
+    },
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
+    'quickchart.io': () => ({
+      ok: true,
+      status: 200,
+      url: 'https://quickchart.io/chart?c=...'
+    })
   });
   
   global.fetch = mockFetch;
