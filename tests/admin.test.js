@@ -267,6 +267,76 @@ runner.test('Rate limiting with batch processing', async () => {
   }
 });
 
+// Test 7: Fallback to first_name/last_name when username is missing
+runner.test('Fallback to first_name/last_name when username is missing', async () => {
+  const env = createMockEnv();
+  
+  // Add subscribers: one with username, one without username but with first+last name, one with only first name
+  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222, 333333333]));
+  
+  const mockFetch = createMockFetch({
+    'api.telegram.org': (options) => {
+      const body = JSON.parse(options.body || '{}');
+      const chatId = body.chat_id;
+      
+      // Check if this is a getChat call (has chat_id but no text)
+      if (body.chat_id !== undefined && body.text === undefined) {
+        let result;
+        
+        if (chatId === 111111111) {
+          // User with username
+          result = {
+            id: chatId,
+            type: 'private',
+            username: 'user_with_username',
+            first_name: 'John'
+          };
+        } else if (chatId === 222222222) {
+          // User without username but with first and last name
+          result = {
+            id: chatId,
+            type: 'private',
+            first_name: 'Jane',
+            last_name: 'Doe'
+          };
+        } else if (chatId === 333333333) {
+          // User without username, only first name
+          result = {
+            id: chatId,
+            type: 'private',
+            first_name: 'Bob'
+          };
+        }
+        
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: result
+          })
+        };
+      }
+      
+      // Default response for sendMessage and other Telegram API calls
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const result = await listSubscribers(env);
+  
+  assertIncludes(result, 'Total subscribers: 3', 'Should show total count of 3');
+  assertIncludes(result, '@user_with_username', 'Should show username when available');
+  assertIncludes(result, 'Jane Doe', 'Should show first_name + last_name when username is missing');
+  assertIncludes(result, 'Bob', 'Should show first_name only when username and last_name are missing');
+});
+
 // Run tests
 runner.run().catch(console.error);
 

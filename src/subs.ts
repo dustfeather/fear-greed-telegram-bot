@@ -123,11 +123,17 @@ export async function listSubscribers(env: Env): Promise<string> {
         
         if (result.status === 'fulfilled' && result.value) {
           const chatInfo = result.value;
-          // For private chats, username is always present
+          // Prefer username if available
           if (chatInfo.username) {
             usernames.push(`@${chatInfo.username}`);
+          } else if (chatInfo.first_name) {
+            // Use first_name + last_name as fallback
+            const fullName = chatInfo.last_name 
+              ? `${chatInfo.first_name} ${chatInfo.last_name}`
+              : chatInfo.first_name;
+            usernames.push(fullName);
           } else {
-            // Fallback (shouldn't happen, but just in case)
+            // Last resort: use chat ID
             usernames.push(`User ${chatId}`);
           }
         } else {
