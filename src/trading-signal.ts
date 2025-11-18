@@ -16,17 +16,20 @@ import { fetchMarketData } from './market-data.js';
 import { getActivePosition } from './utils/trades.js';
 
 /**
- * Evaluate Condition A: Price below any SMA
+ * Evaluate Condition A: New BUY signal formula
+ * (price <= SMA20 AND (price within 1% or lower than lowerBB)) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200
  * @param currentPrice - Current price
  * @param indicators - Technical indicators
- * @returns true if price is below any SMA
+ * @returns true if new condition is met
  */
 function evaluateConditionA(currentPrice: number, indicators: TechnicalIndicators): boolean {
+  const lowerBBThreshold = indicators.bollingerLower * (1 + TRADING_CONFIG.BB_LOWER_THRESHOLD);
+  
   return (
-    currentPrice < indicators.sma20 ||
-    currentPrice < indicators.sma50 ||
-    currentPrice < indicators.sma100 ||
-    currentPrice < indicators.sma200
+    (currentPrice <= indicators.sma20 && currentPrice <= lowerBBThreshold) ||
+    currentPrice <= indicators.sma50 ||
+    currentPrice <= indicators.sma100 ||
+    currentPrice <= indicators.sma200
   );
 }
 
@@ -92,11 +95,34 @@ function generateReasoning(
 
   if (signal === 'BUY') {
     reasons.push('BUY signal triggered');
-    if (conditionA) {
-      reasons.push('Price is below one or more SMA lines');
-    }
-    if (conditionB) {
-      reasons.push(`Price is within 1% of Bollinger Band lower (${indicators.bollingerLower.toFixed(2)})`);
+    if (conditionA && typeof currentPrice === 'number') {
+      const lowerBBThreshold = indicators.bollingerLower * (1 + TRADING_CONFIG.BB_LOWER_THRESHOLD);
+      const sma20AndBB = currentPrice <= indicators.sma20 && currentPrice <= lowerBBThreshold;
+      const sma50 = currentPrice <= indicators.sma50;
+      const sma100 = currentPrice <= indicators.sma100;
+      const sma200 = currentPrice <= indicators.sma200;
+      
+      const conditionParts: string[] = [];
+      if (sma20AndBB) {
+        conditionParts.push(`Price <= SMA20 (${indicators.sma20.toFixed(2)}) AND within 1% of BB lower (${indicators.bollingerLower.toFixed(2)})`);
+      }
+      if (sma50) {
+        conditionParts.push(`Price <= SMA50 (${indicators.sma50.toFixed(2)})`);
+      }
+      if (sma100) {
+        conditionParts.push(`Price <= SMA100 (${indicators.sma100.toFixed(2)})`);
+      }
+      if (sma200) {
+        conditionParts.push(`Price <= SMA200 (${indicators.sma200.toFixed(2)})`);
+      }
+      
+      if (conditionParts.length > 0) {
+        reasons.push(`Entry condition met: ${conditionParts.join(' OR ')}`);
+      } else {
+        reasons.push('Price condition met (new BUY formula)');
+      }
+    } else if (conditionA) {
+      reasons.push('Price condition met (new BUY formula)');
     }
     if (conditionC) {
       reasons.push('Fear & Greed Index indicates fear/extreme fear');
@@ -138,8 +164,8 @@ function generateReasoning(
     } else {
       // No active position - explain why entry conditions aren't met
       reasons.push('HOLD - Entry conditions not met');
-      if (!conditionA && !conditionB) {
-        reasons.push('Price is not below SMAs or near BB lower');
+      if (!conditionA) {
+        reasons.push('Price condition not met (not (price <= SMA20 AND near BB lower) OR price <= SMA50/100/200)');
       }
       if (!conditionC) {
         reasons.push('Fear & Greed Index is not in fear/extreme fear');
@@ -256,7 +282,8 @@ export async function evaluateTradingSignal(
     // Otherwise signal remains HOLD (user has position, no new BUY signal)
   } else {
     // No active position, check for BUY signal
-    const entryCondition = (conditionA || conditionB) && conditionC;
+    // New formula: conditionA AND conditionC (conditionA now includes the new formula)
+    const entryCondition = conditionA && conditionC;
 
     if (entryCondition) {
       // Entry conditions are met - signal is valid
@@ -348,7 +375,7 @@ export function formatTradingSignalMessage(
     message += `• BB Lower: $${indicators.bollingerLower.toFixed(2)}\n\n`;
 
     message += `*Conditions:*\n`;
-    message += `• Condition A (Price < SMA): ${signal.conditionA ? '✅' : '❌'}\n`;
+    message += `• Condition A (New BUY formula): ${signal.conditionA ? '✅' : '❌'}\n`;
     message += `• Condition B (Price near BB Lower): ${signal.conditionB ? '✅' : '❌'}\n`;
     message += `• Condition C (Fear/Extreme Fear): ${signal.conditionC ? '✅' : '❌'}\n\n`;
 

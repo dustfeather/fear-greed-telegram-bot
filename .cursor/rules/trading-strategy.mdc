@@ -42,24 +42,26 @@ alwaysApply: false
 
 ## Entry Conditions
 
-### Condition A: Price Below SMA
-- **Trigger**: Current price drops below ANY of the following SMA lines:
-  - SMA 20
-  - SMA 50
-  - SMA 100
-  - SMA 200
+### Condition A: New BUY Signal Formula
+- **Trigger**: Current price meets one of the following conditions:
+  - (Price <= SMA20 AND Price within 1% or lower than lower Bollinger Band) OR
+  - Price <= SMA50 OR
+  - Price <= SMA100 OR
+  - Price <= SMA200
+- **Formula**: `(price <= SMA20 AND price <= lowerBB * 1.01) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200`
 
 ### Condition B: Price Near Bollinger Band Lower
 - **Trigger**: Current price gets near the Bollinger Band lower band
 - **Threshold**: Price must be within 1% of the lower Bollinger Band or below it
 - **Formula**: `currentPrice <= bollingerLowerBand * 1.01`
+- **Note**: This condition is still evaluated for display purposes but is now incorporated into Condition A
 
 ### Condition C: Fear & Greed Index
 - **Source**: CNN Fear & Greed Index
 - **Required Values**: "fear" OR "extreme fear"
 
 ### Entry Rule
-- **Formula**: (Condition A OR Condition B) AND Condition C
+- **Formula**: Condition A AND Condition C
 - **Action**: Execute BUY order when all conditions are met
 
 ## Trading Frequency Limit

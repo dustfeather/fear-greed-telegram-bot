@@ -35,6 +35,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Exit strategy: SELL now requires a profitable position and can trigger at either all-time highs or near the Bollinger upper band (within 1%)
 - Watchlist management: removing the last ticker automatically re-adds SPY to ensure users always have at least one ticker
 - Watchlist auto-initialization: existing subscribed users without a watchlist are automatically assigned the default watchlist (SPY) on the first scheduled job run or first /now command
+- BUY signal formula: updated to (price <= SMA20 AND (price within 1% or lower than lowerBB)) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200, while still requiring Fear & Greed Index to be fear/extreme fear
 
 ### Technical Details
 - New modules: `market-data.ts`, `indicators.ts`, `trading-signal.ts`, `utils/trades.ts`, `utils/executions.ts`, `utils/watchlist.ts`
