@@ -46,33 +46,17 @@ function evaluateConditionC(fearGreedData: FearGreedIndexResponse): boolean {
 }
 
 /**
- * Calculate Fibonacci extension target for SELL signal
- * @param entryPrice - Entry price when BUY was executed (swing low)
- * @param historicalData - Historical price data to find previous swing high
- * @returns Fibonacci extension target (100% extension)
+ * Calculate all-time high from historical price data
+ * @param historicalData - Historical price data
+ * @returns All-time high price
  */
-function calculateFibonacciExtension(entryPrice: number, historicalData: PriceData[]): number {
-  // For 100% Fibonacci extension, we need:
-  // - Swing Low: entryPrice (where we entered)
-  // - Swing High: highest price before entry (within reasonable lookback period)
-  // - 100% Extension = Swing High + (Swing High - Swing Low)
-  
-  // Find the highest price in the 30 days before entry (swing high)
-  // Since we don't have exact entry timestamp, use the most recent high from historical data
-  // For simplicity, use the highest high from the last portion of historical data
-  const lookbackDays = 30;
-  const recentData = historicalData.slice(-lookbackDays);
-  
-  if (recentData.length === 0) {
-    // Fallback: if no historical data, use a simple 50% gain target
-    return entryPrice * 1.5;
+function calculateAllTimeHigh(historicalData: PriceData[]): number {
+  if (historicalData.length === 0) {
+    throw new Error('Cannot calculate all-time high: no historical data available');
   }
   
-  const swingHigh = Math.max(...recentData.map(d => d.high));
-  const swingLow = entryPrice;
-  
-  // 100% Fibonacci extension: swingHigh + (swingHigh - swingLow)
-  return swingHigh + (swingHigh - swingLow);
+  // Find the maximum high price across all historical data
+  return Math.max(...historicalData.map(d => d.high));
 }
 
 /**
@@ -104,7 +88,7 @@ function generateReasoning(
     }
   } else if (signal === 'SELL') {
     reasons.push('SELL signal triggered');
-    reasons.push('Price reached Fibonacci extension target');
+    reasons.push('Price reached all-time high');
   } else {
     reasons.push('HOLD - No trading signal');
     if (!conditionA && !conditionB) {
@@ -197,9 +181,9 @@ export async function evaluateTradingSignal(
   if (activePosition) {
     // We have an active position, check for SELL signal
     entryPrice = activePosition;
-    sellTarget = calculateFibonacciExtension(entryPrice, marketData.historicalData);
+    sellTarget = calculateAllTimeHigh(marketData.historicalData);
 
-    // SELL signal: price reached Fibonacci extension target
+    // SELL signal: price reached all-time high
     if (currentPrice >= sellTarget) {
       signal = 'SELL';
       // Clear active position when SELL signal is generated

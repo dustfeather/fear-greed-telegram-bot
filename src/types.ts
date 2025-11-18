@@ -147,7 +147,7 @@ export interface TradingSignal {
   canTrade: boolean; // Whether trading is allowed (frequency limit check)
   lastTradeDate?: number; // Timestamp of last trade
   entryPrice?: number; // Entry price if there's an active position
-  sellTarget?: number; // Fibonacci extension target for SELL
+  sellTarget?: number; // All-time high target for SELL
   reasoning: string; // Human-readable explanation
 }
 

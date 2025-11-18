@@ -67,10 +67,5 @@ alwaysApply: false
 - **Enforcement**: Do not execute more than one trade within any 30-day period
 
 ## Exit Strategy (Profit-Taking)
-- **Method**: Fibonacci Extension Targets
-- **Target Level**: 100% extension level
-- **Calculation**: From entry price when BUY signal was executed
-- **Formula**: `sellTarget = swingHigh + (swingHigh - swingLow)` where:
-  - `swingLow` = entry price (where BUY was executed)
-  - `swingHigh` = highest price in the 30 days before entry
-- **Action**: Execute SELL order when price reaches the 100% Fibonacci extension target
+- **Method**: All time high
+- **Target Level**: price reached all time high

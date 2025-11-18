@@ -188,16 +188,28 @@ runner.test('Format trading signal message', () => {
   assert(message.includes('Fear'), 'Message should include Fear & Greed rating');
 });
 
-// Test 5: SELL signal when price reaches Fibonacci target
-runner.test('SELL signal when price reaches Fibonacci target', async () => {
+// Test 5: SELL signal when price reaches all-time high
+runner.test('SELL signal when price reaches all-time high', async () => {
   const env = createMockEnv();
   
   // Set active position
   const entryPrice = 400;
   await env.FEAR_GREED_KV.put('active_position', JSON.stringify({ entryPrice }));
   
-  // Set high current price (above Fibonacci target)
-  const currentPrice = 500;
+  // Create market data where all-time high is 500
+  // The current price should be at or above the all-time high to trigger SELL
+  const allTimeHigh = 500;
+  const currentPrice = allTimeHigh; // Current price equals all-time high
+  
+  // Create market data and ensure the all-time high is set correctly
+  // We need to make sure at least one high in the historical data equals the all-time high
+  const marketData = createMockMarketData(currentPrice);
+  const highs = marketData.chart.result[0].indicators.quote[0].high;
+  // Set all highs to be below allTimeHigh, except set the last one to allTimeHigh
+  // This ensures the all-time high is exactly allTimeHigh
+  marketData.chart.result[0].indicators.quote[0].high = 
+    highs.map((h, i) => i === highs.length - 1 ? allTimeHigh : Math.min(h, allTimeHigh - 1));
+  
   const fearGreedData = {
     rating: 'Neutral',
     score: 50.0
@@ -207,7 +219,7 @@ runner.test('SELL signal when price reaches Fibonacci target', async () => {
     'query1.finance.yahoo.com': () => ({
       ok: true,
       status: 200,
-      json: async () => createMockMarketData(currentPrice)
+      json: async () => marketData
     }),
     'production.dataviz.cnn.io': () => ({
       ok: true,
@@ -220,10 +232,18 @@ runner.test('SELL signal when price reaches Fibonacci target', async () => {
   
   const signal = await evaluateTradingSignal(env, fearGreedData);
   
-  // May or may not trigger SELL depending on Fibonacci calculation
+  // Should trigger SELL when current price >= all-time high
   assert(['BUY', 'SELL', 'HOLD'].includes(signal.signal), 'Signal should be valid type');
   if (signal.entryPrice) {
     assertEqual(signal.entryPrice, entryPrice, 'Should have entry price');
+  }
+  if (signal.sellTarget) {
+    // The sell target (all-time high) should equal allTimeHigh
+    assertEqual(signal.sellTarget, allTimeHigh, 'Sell target should equal all-time high');
+    // Current price equals all-time high, so SELL should be triggered
+    if (currentPrice >= signal.sellTarget) {
+      assert(signal.signal === 'SELL', 'Should trigger SELL when price >= all-time high');
+    }
   }
 });
 

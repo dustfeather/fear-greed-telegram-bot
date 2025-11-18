@@ -21,7 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Condition C: Fear & Greed Index rating is "fear" or "extreme fear"
   - Entry rule: (Condition A OR Condition B) AND Condition C
 - Trading frequency limit enforcement (maximum 1 trade per 30 days)
-- Fibonacci extension target calculation for SELL signals (100% extension level)
+- All-time high target calculation for SELL signals
 - Trade history management with KV storage
 - Active position tracking for exit signal evaluation
 - Trading signal messages integrated into `/now` command and scheduled tasks
