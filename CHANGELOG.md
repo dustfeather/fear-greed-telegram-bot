@@ -41,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - When market data or Fear & Greed Index data is unavailable, a HOLD signal is sent with reasoning explaining the data unavailability
 - Signal messages now always include a trading signal (BUY/SELL/HOLD) with clear reasoning, ensuring users always receive actionable information
 - Improved error handling to gracefully handle data source failures while still providing users with signal information
+- Enhanced security in `fetchMarketData()` with input validation and URL encoding to prevent URL injection attacks
+- Improved URL construction in `fetchMarketData()` using direct string interpolation instead of regex replacement
+- Added comprehensive error logging for Yahoo Finance API failures to aid in debugging
 
 ### Technical Details
 - New modules:
