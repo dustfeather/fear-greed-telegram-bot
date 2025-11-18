@@ -2,6 +2,8 @@ import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from './typ
 import { getChatIds, addChatId, removeChatId } from './utils/kv.js';
 import { getWatchlist } from './utils/watchlist.js';
 import { getErrorMessage } from './utils/errors.js';
+import { getChatInfo } from './utils/telegram.js';
+import { RATE_LIMITS } from './constants.js';
 
 /**
  * Sanitize subscription result by removing sensitive data.
@@ -81,6 +83,83 @@ export async function unsub(chatId: number | string, env: Env): Promise<Subscrip
       allSubscribers: [],
       error: getErrorMessage(error)
     };
+  }
+}
+
+/**
+ * Sleep utility for rate limiting
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * List all subscribers with their usernames.
+ * Automatically unsubscribes users who have blocked the bot.
+ * @param env - Environment variables
+ * @returns Promise resolving to formatted subscriber list string
+ */
+export async function listSubscribers(env: Env): Promise<string> {
+  try {
+    const chatIds = await getChatIds(env.FEAR_GREED_KV);
+    
+    if (chatIds.length === 0) {
+      return 'Total subscribers: 0\n\nNo subscribers found.';
+    }
+    
+    const usernames: string[] = [];
+    const batchSize = RATE_LIMITS.TELEGRAM_BATCH_SIZE;
+    const delayBetweenBatches = 1000 / RATE_LIMITS.TELEGRAM_MESSAGES_PER_SECOND * batchSize;
+    
+    // Process in batches to respect rate limits
+    for (let i = 0; i < chatIds.length; i += batchSize) {
+      const batch = chatIds.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(chatId => getChatInfo(chatId, env))
+      );
+      
+      results.forEach((result, batchIndex) => {
+        const chatId = batch[batchIndex];
+        
+        if (result.status === 'fulfilled' && result.value) {
+          const chatInfo = result.value;
+          // For private chats, username is always present
+          if (chatInfo.username) {
+            usernames.push(`@${chatInfo.username}`);
+          } else {
+            // Fallback (shouldn't happen, but just in case)
+            usernames.push(`User ${chatId}`);
+          }
+        } else {
+          // User blocked bot or chat not found - unsubscribe them
+          console.log(`Unsubscribing ${chatId} - chat not found or user blocked bot`);
+          unsub(chatId, env).catch(err => {
+            console.error(`Failed to unsubscribe ${chatId}:`, err);
+          });
+        }
+      });
+      
+      // Wait before processing next batch (except for the last batch)
+      if (i + batchSize < chatIds.length) {
+        await sleep(delayBetweenBatches);
+      }
+    }
+    
+    // Format output with total count first, then numbered list
+    let message = `Total subscribers: ${usernames.length}\n\n`;
+    
+    if (usernames.length === 0) {
+      message += 'No active subscribers found.';
+    } else {
+      usernames.forEach((username, index) => {
+        message += `${index + 1}. ${username}\n`;
+      });
+    }
+    
+    return message.trim();
+  } catch (error) {
+    console.error('Error listing subscribers:', error);
+    return `Error retrieving subscriber list: ${getErrorMessage(error)}`;
   }
 }
 

@@ -1,5 +1,5 @@
 import type { ScheduledController, ExecutionContext } from '@cloudflare/workers-types';
-import { sub, unsub } from './subs.js';
+import { sub, unsub, listSubscribers } from './subs.js';
 import { handleScheduled } from './sched.js';
 import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './send.js';
 import type { Env, TelegramUpdate } from './types.js';
@@ -398,6 +398,29 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           await sendTelegramMessage(
             chatId,
             '❌ Invalid format. Use:\n/watchlist - View your watchlist\n/watchlist add TICKER - Add ticker to watchlist\n/watchlist remove TICKER - Remove ticker from watchlist',
+            env
+          );
+        }
+        
+        return successResponse();
+      } else if (text === COMMANDS.SUBSCRIBERS) {
+        // Admin-only command: list all subscribers
+        // Check if user is admin
+        const adminChatId = env.ADMIN_CHAT_ID;
+        if (!adminChatId || String(chatId) !== String(adminChatId)) {
+          // Non-admin user - silently ignore (don't reveal command exists)
+          return successResponse();
+        }
+        
+        // Admin user - process command
+        try {
+          const subscriberList = await listSubscribers(env);
+          await sendTelegramMessage(chatId, subscriberList, env);
+        } catch (error) {
+          console.error('Error listing subscribers:', error);
+          await sendTelegramMessage(
+            chatId,
+            '❌ Failed to retrieve subscriber list. Please try again.',
             env
           );
         }

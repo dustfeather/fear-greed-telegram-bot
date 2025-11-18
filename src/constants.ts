@@ -62,7 +62,8 @@ export const COMMANDS = {
   NOW: '/now',
   EXECUTE: '/execute',
   EXECUTIONS: '/executions',
-  WATCHLIST: '/watchlist'
+  WATCHLIST: '/watchlist',
+  SUBSCRIBERS: '/subscribers'
 } as const;
 
 // Message Templates

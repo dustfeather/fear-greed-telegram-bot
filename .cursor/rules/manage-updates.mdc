@@ -5,3 +5,4 @@ alwaysApply: true
 - changelog should not have separate entries for the same date
 - always use the current date in the changelog (YYYY-MM-DD)
 - always update the "Available commands" helper message, when changing any of the commands
+- run `npx tsc --noEmit` to check for type errors

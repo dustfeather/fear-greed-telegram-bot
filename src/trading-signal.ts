@@ -16,20 +16,28 @@ import { fetchMarketData } from './market-data.js';
 import { getActivePosition } from './utils/trades.js';
 
 /**
- * Evaluate Condition A: New BUY signal formula
- * (price <= SMA20 AND (price within 1% or lower than lowerBB)) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200
+ * Evaluate Condition A: New BUY signal formula with 1% SMA buffer
+ * (price within 1% of SMA20 OR price <= SMA20) AND (price within 1% or lower than lowerBB) OR 
+ * (price within 1% of SMA50 OR price <= SMA50) OR 
+ * (price within 1% of SMA100 OR price <= SMA100) OR 
+ * (price within 1% of SMA200 OR price <= SMA200)
+ * Simplified: price <= SMA * 1.01 for all SMAs
  * @param currentPrice - Current price
  * @param indicators - Technical indicators
  * @returns true if new condition is met
  */
 function evaluateConditionA(currentPrice: number, indicators: TechnicalIndicators): boolean {
   const lowerBBThreshold = indicators.bollingerLower * (1 + TRADING_CONFIG.BB_LOWER_THRESHOLD);
+  const sma20Threshold = indicators.sma20 * 1.01;
+  const sma50Threshold = indicators.sma50 * 1.01;
+  const sma100Threshold = indicators.sma100 * 1.01;
+  const sma200Threshold = indicators.sma200 * 1.01;
   
   return (
-    (currentPrice <= indicators.sma20 && currentPrice <= lowerBBThreshold) ||
-    currentPrice <= indicators.sma50 ||
-    currentPrice <= indicators.sma100 ||
-    currentPrice <= indicators.sma200
+    (currentPrice <= sma20Threshold && currentPrice <= lowerBBThreshold) ||
+    currentPrice <= sma50Threshold ||
+    currentPrice <= sma100Threshold ||
+    currentPrice <= sma200Threshold
   );
 }
 
@@ -90,30 +98,35 @@ function generateReasoning(
   exitContext: ExitReasoningContext = {}
 ): string {
   const reasons: string[] = [];
-  const { entryPrice, exitTrigger, bollingerSellTarget, hasPositiveProfit } = exitContext;
+  const { entryPrice, exitTrigger, hasPositiveProfit } = exitContext;
   const profitIsNegative = hasPositiveProfit === false && typeof entryPrice === 'number' && typeof currentPrice === 'number';
 
   if (signal === 'BUY') {
     reasons.push('BUY signal triggered');
     if (conditionA && typeof currentPrice === 'number') {
       const lowerBBThreshold = indicators.bollingerLower * (1 + TRADING_CONFIG.BB_LOWER_THRESHOLD);
-      const sma20AndBB = currentPrice <= indicators.sma20 && currentPrice <= lowerBBThreshold;
-      const sma50 = currentPrice <= indicators.sma50;
-      const sma100 = currentPrice <= indicators.sma100;
-      const sma200 = currentPrice <= indicators.sma200;
+      const sma20Threshold = indicators.sma20 * 1.01;
+      const sma50Threshold = indicators.sma50 * 1.01;
+      const sma100Threshold = indicators.sma100 * 1.01;
+      const sma200Threshold = indicators.sma200 * 1.01;
+      
+      const sma20AndBB = currentPrice <= sma20Threshold && currentPrice <= lowerBBThreshold;
+      const sma50 = currentPrice <= sma50Threshold;
+      const sma100 = currentPrice <= sma100Threshold;
+      const sma200 = currentPrice <= sma200Threshold;
       
       const conditionParts: string[] = [];
       if (sma20AndBB) {
-        conditionParts.push(`Price <= SMA20 (${indicators.sma20.toFixed(2)}) AND within 1% of BB lower (${indicators.bollingerLower.toFixed(2)})`);
+        conditionParts.push(`Price within 1% of SMA20 (${indicators.sma20.toFixed(2)}) AND within 1% of BB lower (${indicators.bollingerLower.toFixed(2)})`);
       }
       if (sma50) {
-        conditionParts.push(`Price <= SMA50 (${indicators.sma50.toFixed(2)})`);
+        conditionParts.push(`Price within 1% of SMA50 (${indicators.sma50.toFixed(2)})`);
       }
       if (sma100) {
-        conditionParts.push(`Price <= SMA100 (${indicators.sma100.toFixed(2)})`);
+        conditionParts.push(`Price within 1% of SMA100 (${indicators.sma100.toFixed(2)})`);
       }
       if (sma200) {
-        conditionParts.push(`Price <= SMA200 (${indicators.sma200.toFixed(2)})`);
+        conditionParts.push(`Price within 1% of SMA200 (${indicators.sma200.toFixed(2)})`);
       }
       
       if (conditionParts.length > 0) {
@@ -130,9 +143,9 @@ function generateReasoning(
   } else if (signal === 'SELL') {
     reasons.push('SELL signal triggered');
     if (exitTrigger === 'BOLLINGER_UPPER') {
-      reasons.push('Price reached Bollinger Band upper target');
+      reasons.push('Price within 1% or higher than Bollinger Band upper target');
     } else {
-      reasons.push('Price reached all-time high');
+      reasons.push('Price within 1% or higher than all-time high');
     }
   } else {
     // HOLD signal
@@ -141,15 +154,15 @@ function generateReasoning(
       reasons.push('HOLD - You have an active position');
       if (sellTarget && currentPrice) {
         const targets: string[] = [];
-        const athDistance = sellTarget - currentPrice;
+        const athThreshold = sellTarget * 0.99;
+        const athDistance = athThreshold - currentPrice;
         const athPercent = ((athDistance / currentPrice) * 100).toFixed(2);
-        targets.push(`ATH: $${sellTarget.toFixed(2)} (${athPercent}% away)`);
+        targets.push(`ATH (within 1%): $${athThreshold.toFixed(2)} (${athPercent}% away)`);
 
-        if (bollingerSellTarget) {
-          const bbDistance = bollingerSellTarget - currentPrice;
-          const bbPercent = ((bbDistance / currentPrice) * 100).toFixed(2);
-          targets.push(`BB upper: $${bollingerSellTarget.toFixed(2)} (${bbPercent}% away)`);
-        }
+        const bbThreshold = indicators.bollingerUpper * 0.99;
+        const bbDistance = bbThreshold - currentPrice;
+        const bbPercent = ((bbDistance / currentPrice) * 100).toFixed(2);
+        targets.push(`BB upper (within 1%): $${bbThreshold.toFixed(2)} (${bbPercent}% away)`);
 
         reasons.push(`Price has not reached the sell targets (${targets.join('; ')}), currently $${currentPrice.toFixed(2)}`);
       } else {
@@ -165,7 +178,7 @@ function generateReasoning(
       // No active position - explain why entry conditions aren't met
       reasons.push('HOLD - Entry conditions not met');
       if (!conditionA) {
-        reasons.push('Price condition not met (not (price <= SMA20 AND near BB lower) OR price <= SMA50/100/200)');
+        reasons.push('Price condition not met (not (price within 1% of SMA20 AND near BB lower) OR price within 1% of SMA50/100/200)');
       }
       if (!conditionC) {
         reasons.push('Fear & Greed Index is not in fear/extreme fear');
@@ -269,10 +282,10 @@ export async function evaluateTradingSignal(
     sellTarget = allTimeHighTarget;
 
     const hasPositiveProfit = currentPrice > entryPrice;
-    const reachedAllTimeHigh = currentPrice >= allTimeHighTarget;
-    const reachedBollingerUpper = currentPrice >= bollingerSellTarget;
+    const reachedAllTimeHigh = currentPrice >= allTimeHighTarget * 0.99;
+    const reachedBollingerUpper = currentPrice >= indicators.bollingerUpper * 0.99;
 
-    if (hasPositiveProfit && (reachedAllTimeHigh || reachedBollingerUpper)) {
+    if ((reachedAllTimeHigh && hasPositiveProfit) || (reachedBollingerUpper && hasPositiveProfit)) {
       signal = 'SELL';
       exitTrigger = reachedAllTimeHigh ? 'ALL_TIME_HIGH' : 'BOLLINGER_UPPER';
       sellTarget = exitTrigger === 'ALL_TIME_HIGH' ? allTimeHighTarget : bollingerSellTarget;

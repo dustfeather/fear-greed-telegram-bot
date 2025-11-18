@@ -42,13 +42,14 @@ alwaysApply: false
 
 ## Entry Conditions
 
-### Condition A: New BUY Signal Formula
+### Condition A: New BUY Signal Formula with 1% SMA Buffer
 - **Trigger**: Current price meets one of the following conditions:
-  - (Price <= SMA20 AND Price within 1% or lower than lower Bollinger Band) OR
-  - Price <= SMA50 OR
-  - Price <= SMA100 OR
-  - Price <= SMA200
-- **Formula**: `(price <= SMA20 AND price <= lowerBB * 1.01) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200`
+  - (Price within 1% of SMA20 OR price <= SMA20) AND (Price within 1% or lower than lower Bollinger Band) OR
+  - (Price within 1% of SMA50 OR price <= SMA50) OR
+  - (Price within 1% of SMA100 OR price <= SMA100) OR
+  - (Price within 1% of SMA200 OR price <= SMA200)
+- **Formula**: `(price <= SMA20 * 1.01 AND price <= lowerBB * 1.01) OR price <= SMA50 * 1.01 OR price <= SMA100 * 1.01 OR price <= SMA200 * 1.01`
+- **Note**: The 1% buffer allows signals to trigger slightly before price hits the SMA, providing earlier entry opportunities
 
 ### Condition B: Price Near Bollinger Band Lower
 - **Trigger**: Current price gets near the Bollinger Band lower band
@@ -70,6 +71,6 @@ alwaysApply: false
 
 ## Exit Strategy (Profit-Taking)
 - **Method**: All time high or near BB higher
-- **Target Level**: price reached all time high or near BB higher (within 1% of the higher band or above) and profit is positive
-- **Formula**: (currentPrice >= allTimeHigh or currentPrice >= bollingerUpperBand * 1.01) and profit is positive
+- **Target Level**: price within 1% or higher than all time high OR price within 1% or higher than BB upper, and profit is positive
+- **Formula**: (currentPrice >= allTimeHigh * 0.99 AND profit > 0) OR (currentPrice >= bollingerUpperBand * 0.99 AND profit > 0)
 - **Action**: Execute SELL order when all conditions are met

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2025-11-19
+
+### Added
+- Admin command `/subscribers`: admin-only command to list all subscribed Telegram users with their usernames
+- Automatic cleanup: users who have blocked the bot are automatically unsubscribed when listing subscribers
+
+### Changed
+- SELL signal formula: updated to trigger when (price >= allTimeHigh * 0.99 AND profit > 0) OR (price >= bollingerUpper * 0.99 AND profit > 0), allowing earlier exit signals when price is within 1% of targets
+
+### Technical Details
+- New module: `src/utils/telegram.ts` with `getChatInfo` function for fetching user information from Telegram API
+- New function: `listSubscribers` in `src/subs.ts` for retrieving and formatting subscriber list
+- Admin command access control: `/subscribers` command only accessible to admin (ADMIN_CHAT_ID), silently ignored for non-admin users
+- New test file: `tests/admin.test.js` for testing admin command functionality
+
 ## 2025-11-18
 
 ### Added
@@ -36,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Watchlist management: removing the last ticker automatically re-adds SPY to ensure users always have at least one ticker
 - Watchlist auto-initialization: existing subscribed users without a watchlist are automatically assigned the default watchlist (SPY) on the first scheduled job run or first /now command
 - BUY signal formula: updated to (price <= SMA20 AND (price within 1% or lower than lowerBB)) OR price <= SMA50 OR price <= SMA100 OR price <= SMA200, while still requiring Fear & Greed Index to be fear/extreme fear
+- BUY signal formula: added 1% buffer to all SMA checks (price within 1% of SMA OR price <= SMA), allowing signals to trigger slightly before price hits the SMA for earlier entry opportunities
 
 ### Technical Details
 - New modules: `market-data.ts`, `indicators.ts`, `trading-signal.ts`, `utils/trades.ts`, `utils/executions.ts`, `utils/watchlist.ts`
