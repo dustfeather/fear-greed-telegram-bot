@@ -18,6 +18,7 @@ This starts your worker at `http://localhost:8787`. You can:
   ```bash
   curl -X POST http://localhost:8787 \
     -H "Content-Type: application/json" \
+    -H "X-Telegram-Bot-Api-Secret-Token: your_webhook_secret_here" \
     -d '{
       "message": {
         "text": "/start",
@@ -27,12 +28,21 @@ This starts your worker at `http://localhost:8787`. You can:
       }
     }'
   ```
+  
+  **Note:** Replace `your_webhook_secret_here` with the value from your `.dev.vars` file (`TELEGRAM_WEBHOOK_SECRET`). Requests without this header will return 401 Unauthorized.
 
 - **Test different commands:**
   - `/start` - Subscribe
   - `/stop` - Unsubscribe  
   - `/help` - Help message
-  - `/now` - Get current Fear & Greed Index
+  - `/now` - Get trading signals for all tickers in your watchlist
+  - `/now TICKER` - Get trading signal for a specific ticker (e.g., `/now AAPL`)
+  - `/watchlist` - View your watchlist
+  - `/watchlist add TICKER` - Add ticker to your watchlist
+  - `/watchlist remove TICKER` - Remove ticker from your watchlist
+  - `/execute TICKER PRICE [DATE]` - Record execution of a signal at a specific price
+  - `/executions` - View your execution history
+  - `/executions TICKER` - View execution history for a specific ticker
 
 - **View console output:** All `console.log()` statements will appear in your terminal
 
@@ -41,22 +51,29 @@ This starts your worker at `http://localhost:8787`. You can:
 You can test scheduled/cron handlers locally:
 
 ```bash
-# Start dev server (in one terminal)
-npm run dev
+# Start dev server with scheduled testing enabled (in one terminal)
+npm run dev:scheduled
+# or
+npx wrangler dev --test-scheduled
 
 # In another terminal, trigger the scheduled handler
-curl "http://localhost:8787/__scheduled?cron=0+9+*+*+1-5"
+curl "http://localhost:8787/__scheduled?cron=0+14+*+*+1-5"
 ```
+
+**Note:** The scheduled endpoint (`/__scheduled`) is only available when running with the `--test-scheduled` flag. The actual cron schedule runs on weekdays (Monday-Friday) between 14:00-21:00 UTC (`0 14-21 * * 1-5`).
 
 ### Using `.dev.vars` for Local Development
 
 Your local environment variables are loaded from `.dev.vars`:
-- `TELEGRAM_BOT_TOKEN_SECRET` - Your bot token
-- `ADMIN_CHAT_ID` - Admin chat ID for notifications
+- `TELEGRAM_BOT_TOKEN_SECRET` - Your bot token (required)
+- `TELEGRAM_WEBHOOK_SECRET` - Secure random string for verifying webhook requests (required)
+- `ADMIN_CHAT_ID` - Admin chat ID for notifications (optional but recommended)
 - `FEAR_GREED_KV_NAMESPACE_ID` - KV namespace for testing (optional for local dev)
 - `FEAR_GREED_KV_PREVIEW_ID` - Preview KV namespace (optional)
 
 **Note:** The `wrangler.jsonc` file is automatically generated when you run `npm run dev`. It reads from `.dev.vars` or environment variables. If `FEAR_GREED_KV_NAMESPACE_ID` is not set, a placeholder will be used (KV operations won't work, but other functionality will).
+
+**Important:** The `TELEGRAM_WEBHOOK_SECRET` is required for webhook authentication. All POST requests to the worker must include the `X-Telegram-Bot-Api-Secret-Token` header with this secret value. The test scripts automatically include this header when the secret is present in `.dev.vars`.
 
 ### Automated Testing Scripts
 
@@ -77,6 +94,7 @@ The scripts test:
 - All bot commands (`/start`, `/stop`, `/help`, `/now`)
 - Unknown commands handling
 - Invalid payload handling
+- Webhook authentication (401 when secret is missing)
 - GET request rejection (405)
 - Scheduled endpoint
 
@@ -95,8 +113,9 @@ You can also test against a deployed worker:
 - [ ] Test script runs successfully: `./scripts/test-worker.sh` (or `.ps1` on Windows)
 - [ ] Can send POST requests to `http://localhost:8787`
 - [ ] Telegram webhook payloads are processed correctly
-- [ ] Commands (`/start`, `/stop`, `/help`, `/now`) work
-- [ ] Cron triggers can be tested manually
+- [ ] Webhook authentication works (requests without `TELEGRAM_WEBHOOK_SECRET` return 401)
+- [ ] Commands (`/start`, `/stop`, `/help`, `/now`, `/watchlist`, `/execute`, `/executions`) work
+- [ ] Cron triggers can be tested manually with `npm run dev:scheduled`
 - [ ] Console logs appear in terminal
 - [ ] KV operations work (if KV namespace is configured)
 
@@ -112,16 +131,22 @@ You can also test against a deployed worker:
 
 3. **Test with curl:**
    ```bash
-   # Test POST endpoint
+   # Test POST endpoint (include webhook secret header)
    curl -X POST http://localhost:8787 \
      -H "Content-Type: application/json" \
+     -H "X-Telegram-Bot-Api-Secret-Token: your_webhook_secret_here" \
      -d @test-payload.json
    ```
+   
+   **Note:** Replace `your_webhook_secret_here` with the value from your `.dev.vars` file.
 
 4. **Test scheduled events:**
    ```bash
-   # Trigger scheduled handler
-   curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
+   # First, start dev server with scheduled testing enabled
+   npm run dev:scheduled
+   
+   # In another terminal, trigger scheduled handler
+   curl "http://localhost:8787/__scheduled?cron=0+14+*+*+1-5"
    ```
 
 ## Production Testing

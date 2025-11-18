@@ -8,18 +8,28 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
 
 - Subscribe to Fear and Greed Index alerts
 - Unsubscribe from alerts
-- Get the current Fear and Greed Index rating
+- Get the current Fear and Greed Index rating with visual gauge chart
 - Trading signal feature: automated buy/sell recommendations based on technical indicators (SMA, Bollinger Bands) and Fear & Greed Index
 - Market data integration: fetch price data from Yahoo Finance for any ticker symbol
-- Per-user execution tracking: record and view your trading signal executions
-- Help command to show available commands
+- Per-user watchlist: manage your own list of tickers to monitor
+- Scheduled automatic broadcasts: receive trading signals for all tickers in your watchlist on weekdays
+- Per-user execution tracking: record and view your trading signal executions with optional date parameter
+- Active position tracking: automatically tracks open positions and adjusts signals accordingly
+- Trading frequency limits: calendar month-based restrictions (once per month)
+- Color-coded signal indicators: 🟢 BUY, 🟡 HOLD, 🔴 SELL
+- TradingView chart links in signal messages
+- Deployment notifications: automatic notifications to subscribers when new versions are deployed
+- Admin features: admin-only commands for managing subscribers
 
 ## Commands
 
 - `/start` - Subscribe to Fear and Greed Index alerts.
 - `/stop` - Unsubscribe from Fear and Greed Index alerts.
-- `/now` - Get the current Fear and Greed Index rating and trading signal (default: SPY).
+- `/now` - Get trading signals for all tickers in your watchlist.
 - `/now TICKER` - Get trading signal for a specific ticker (e.g., `/now AAPL`).
+- `/watchlist` - View your watchlist.
+- `/watchlist add TICKER` - Add ticker to your watchlist (e.g., `/watchlist add AAPL`).
+- `/watchlist remove TICKER` - Remove ticker from your watchlist (e.g., `/watchlist remove SPY`).
 - `/execute TICKER PRICE [DATE]` - Record execution of a signal at a specific price (e.g., `/execute SPY 400.50`). Optionally specify date as YYYY-MM-DD (e.g., `/execute SPY 400.50 2024-01-15`).
 - `/executions` - View your execution history.
 - `/executions TICKER` - View execution history for a specific ticker (e.g., `/executions SPY`).
@@ -51,150 +61,34 @@ Scan the QR code above to open the bot in Telegram, or search for `@CNN_FEAR_GRE
       - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token (get from [@BotFather](https://t.me/BotFather))
       - `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
       - `ADMIN_CHAT_ID`: Your chat ID for error notifications (optional)
+      - `FEAR_GREED_KV_NAMESPACE_ID`: KV namespace ID (optional for local dev)
 
-## Configuration
-
-### Required Environment Variables
-
-- `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token from BotFather
-- `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
-- `ADMIN_CHAT_ID`: Chat ID for error notifications (optional but recommended)
-- `FEAR_GREED_KV_NAMESPACE_ID`: KV namespace ID for storing chat IDs
-- `FEAR_GREED_KV_PREVIEW_ID`: KV namespace preview ID for local development (optional)
-
-### Local Development
-
-1. Create `.dev.vars` file (see Installation step 3)
-2. Start the development server:
-   ```sh
-   npm start
-   ```
-   or
+4. Start the development server:
    ```sh
    npm run dev
    ```
 
 ### Deployment
 
-#### Using GitHub Actions (Recommended)
-
-This project uses GitHub Actions to dynamically generate `wrangler.jsonc` from repository secrets. 
-
-1. **Set up GitHub Secrets** in your repository settings:
-   - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token
-   - `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
-   - `ADMIN_CHAT_ID`: Admin chat ID for error notifications
-   - `FEAR_GREED_KV_NAMESPACE_ID`: Your production KV namespace ID
-   - `FEAR_GREED_KV_PREVIEW_ID`: Your preview KV namespace ID (optional)
-   - `CF_API_TOKEN`: Cloudflare API token with Workers permissions (requires Workers Scripts: Edit, Workers KV Storage: Edit, Workers Secrets: Edit, Account Settings: Read)
-   - `CF_ACCOUNT_ID`: Your Cloudflare account ID
-
-2. **Configure GitHub Actions** to:
-   - Generate `wrangler.jsonc` from environment variables using the generation script
-   - Deploy using `wrangler deploy`
-
-3. **Create KV Namespaces** (if not already created):
-   ```sh
-   npx wrangler kv namespace create "FEAR_GREED_KV"
-   npx wrangler kv namespace create "FEAR_GREED_KV" --preview
-   ```
-
-#### Cloudflare Secrets API (Current Implementation)
-
-This project uses Cloudflare Secrets API to securely store sensitive values (`TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID`). The GitHub Actions workflow automatically uploads these secrets during deployment using `npx wrangler secret bulk`.
-
-Secrets are managed through the workflow and are never stored in `wrangler.jsonc`, following Cloudflare's security best practices.
-
-**Security Note:** The `TELEGRAM_WEBHOOK_SECRET` is used to verify that incoming webhook requests are actually from Telegram. This prevents unauthorized access to your bot endpoints.
-
-For local development, create a `.dev.vars` file (see Installation step 3 above).
+For comprehensive deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Testing
 
-#### Manual Testing Scripts
+For comprehensive testing instructions, see [TESTING.md](TESTING.md).
 
-Test all endpoints with the provided scripts:
+## Quick Start
 
-**Linux/Mac (Bash):**
-```bash
-# Make executable (first time only)
-chmod +x scripts/test-worker.sh
-
-# Run tests against local dev server
-./scripts/test-worker.sh
-
-# Or test against deployed worker
-./scripts/test-worker.sh https://your-worker.workers.dev
-```
-
-**Windows (PowerShell):**
-```powershell
-# Run tests against local dev server
-.\scripts\test-worker.ps1
-
-# Or test against deployed worker
-.\scripts\test-worker.ps1 -WorkerUrl "https://your-worker.workers.dev"
-```
-
-The test scripts will verify:
-- `/start` command
-- `/stop` command
-- `/help` command
-- `/now` command
-- `/execute` command
-- `/executions` command
-- Unknown commands
-- Invalid payloads
-- GET requests (should return 405)
-- Scheduled/cron endpoint
-
-#### Testing Scheduled Events
-
-Test cron triggers locally:
-```sh
-npx wrangler dev --test-scheduled
-curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
-```
-
-## Usage
-
-1. **Deploy your bot** (if not already deployed):
+1. **Deploy your bot** (see [DEPLOYMENT.md](DEPLOYMENT.md) for details):
    ```sh
    npm run deploy
    ```
 
-2. **Telegram webhook** (required for Telegram to send updates to your bot):
-   
-   **Automatic Setup (Recommended):**
-   - The webhook is automatically configured during CI/CD deployment via GitHub Actions
-   - No manual setup needed after initial deployment
-   - The webhook is updated automatically on every deployment to ensure it always points to the correct URL
-   
-   **Manual Setup (if needed):**
+2. **Set up Telegram webhook** (automatically configured via GitHub Actions, or manually):
    ```sh
-   # Set webhook to your deployed worker (replace with your actual Worker URL)
    npm run webhook:setup -- https://your-worker-name.your-subdomain.workers.dev
-   
-   # Check webhook status
-   npm run webhook:info
-   
-   # Remove webhook (if needed)
-   npm run webhook:setup -- ""
    ```
 
-   **Important:** The webhook must be set up for Telegram to deliver messages to your bot. Without it, commands sent directly in Telegram won't reach your worker. The webhook setup is now automated in CI/CD, so you typically only need to set it manually if:
-   - You're deploying manually (not using GitHub Actions)
-   - Your Worker URL changes
-   - You need to remove or change the webhook
-
-3. **Interact with the bot** in Telegram using the commands:
-   - `/start` - Subscribe to alerts
-   - `/stop` - Unsubscribe
-   - `/help` - Show help
-   - `/now` - Get current Fear & Greed Index and trading signal (default: SPY)
-   - `/now TICKER` - Get trading signal for a specific ticker
-   - `/execute TICKER PRICE [DATE]` - Record signal execution
-   - `/executions` - View execution history
+3. **Start using the bot** - Scan the QR code above or search for `@CNN_FEAR_GREED_ALERT_BOT` in Telegram, then use `/start` to subscribe. See the [Commands](#commands) section above for all available commands.
 
 ![Bot Screenshot](misc/screenshot.png)
 

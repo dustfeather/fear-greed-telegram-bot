@@ -61,10 +61,12 @@ After pushing to the `main` branch:
 
 1. Check GitHub Actions tab to see deployment progress
    - The workflow will validate secrets, generate config, validate config, set secrets, deploy, and set the Telegram webhook
+   - **Note:** The initial validation step checks: `TELEGRAM_BOT_TOKEN_SECRET`, `ADMIN_CHAT_ID`, `FEAR_GREED_KV_NAMESPACE_ID`, `CF_API_TOKEN`, and `CF_ACCOUNT_ID`
+   - `TELEGRAM_WEBHOOK_SECRET` and `WORKER_URL` are validated in later steps (webhook setup will be skipped with a warning if missing)
 2. Once deployed, verify in Cloudflare Dashboard:
    - Workers & Pages → Your worker should be listed
-   - Settings → Triggers → Cron Triggers should show your schedule
-   - Settings → Variables and Secrets → Verify secrets (`TELEGRAM_BOT_TOKEN_SECRET` and `ADMIN_CHAT_ID`) are listed as "Secret" type (not plaintext vars)
+   - Settings → Triggers → Cron Triggers should show your schedule (weekdays, multiple times per day)
+   - Settings → Variables and Secrets → Verify secrets (`TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID`) are listed as "Secret" type (not plaintext vars)
 3. Verify Telegram webhook (optional):
    ```bash
    npm run webhook:info
@@ -126,10 +128,17 @@ curl -X POST "https://your-worker-url.workers.dev/deploy-notify" \
 
 ### Secrets upload fails
 - Verify `TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID` secrets exist in GitHub and are not empty
+- **Note:** `TELEGRAM_WEBHOOK_SECRET` is required for the secrets upload step - if missing, the step will fail
 - Check that `CF_API_TOKEN` has **Workers Secrets: Edit** permission (required for `wrangler secret bulk`)
 - Review workflow logs for detailed error messages from `npx wrangler secret bulk`
 - If secrets already exist, the upload may show warnings but should still succeed
 - Check that the generated `wrangler.jsonc` file is valid before secrets are uploaded
+
+### Webhook setup fails or is skipped
+- The webhook setup step will be skipped with a warning if `TELEGRAM_WEBHOOK_SECRET` or `WORKER_URL` is missing
+- Verify both secrets are set in GitHub
+- Check workflow logs for the "Set Telegram Webhook" step
+- If the step was skipped, you can manually set the webhook using `npm run webhook:setup`
 
 ### Configuration validation fails
 - The workflow validates `wrangler.jsonc` before deployment using `wrangler deploy --dry-run`
