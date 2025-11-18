@@ -84,7 +84,6 @@ function generateReasoning(
   conditionB: boolean,
   conditionC: boolean,
   canTrade: boolean,
-  currentPrice: number,
   indicators: TechnicalIndicators
 ): string {
   const reasons: string[] = [];
@@ -188,7 +187,6 @@ export async function evaluateTradingSignal(
     conditionB,
     conditionC,
     tradingAllowed,
-    currentPrice,
     indicators
   );
 
