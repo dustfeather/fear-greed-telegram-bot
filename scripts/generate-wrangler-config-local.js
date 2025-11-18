@@ -69,7 +69,18 @@ const config = {
     }
   ],
   triggers: {
-    crons: ['0 14-21 * * 1-5']
+    crons: [
+      '0 9-23 * * 1',  // Monday 09:00-23:00
+      '0 0-1 * * 2',   // Tuesday 00:00-01:00 (covers Monday late night)
+      '0 9-23 * * 2',  // Tuesday 09:00-23:00
+      '0 0-1 * * 3',   // Wednesday 00:00-01:00 (covers Tuesday late night)
+      '0 9-23 * * 3',  // Wednesday 09:00-23:00
+      '0 0-1 * * 4',   // Thursday 00:00-01:00 (covers Wednesday late night)
+      '0 9-23 * * 4',  // Thursday 09:00-23:00
+      '0 0-1 * * 5',   // Friday 00:00-01:00 (covers Thursday late night)
+      '0 9-23 * * 5',  // Friday 09:00-23:00
+      '0 0-1 * * 6'    // Saturday 00:00-01:00 (covers Friday late night, weekday check will skip)
+    ]
   },
   kv_namespaces: [
     {

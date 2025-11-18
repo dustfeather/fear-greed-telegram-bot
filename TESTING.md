@@ -45,7 +45,7 @@ You can test scheduled/cron handlers locally:
 npm run dev
 
 # In another terminal, trigger the scheduled handler
-curl "http://localhost:8787/__scheduled?cron=0+14-21+*+*+1-5"
+curl "http://localhost:8787/__scheduled?cron=0+9-23+*+*+1-5"
 ```
 
 ### Using `.dev.vars` for Local Development

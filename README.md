@@ -1,5 +1,7 @@
 # Fear and Greed Telegram Bot
 
+![Logo](misc/logo.png)
+
 This project is a Telegram bot that provides updates on the Fear and Greed Index. Users can subscribe to receive alerts when the index indicates fear or extreme fear.
 
 ## Features
@@ -17,6 +19,10 @@ This project is a Telegram bot that provides updates on the Fear and Greed Index
 - `/help` - Show help message.
 
 ## Installation
+
+![QR Code](misc/QR.png)
+
+Scan the QR code above to open the bot in Telegram, or search for `@CNN_FEAR_GREED_ALERT_BOT`.
 
 1. Clone the repository:
     ```sh
@@ -177,6 +183,10 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
    - `/stop` - Unsubscribe
    - `/help` - Show help
    - `/now` - Get current index
+
+![Bot Screenshot](misc/screenshot.png)
+
+*Example of a trading signal message from the bot*
 
 ## Project Structure
 
