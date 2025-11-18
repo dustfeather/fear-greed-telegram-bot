@@ -2,7 +2,14 @@
  * Trading signal evaluation based on strategy rules
  */
 
-import type { Env, TradingSignal, TechnicalIndicators, FearGreedIndexResponse, PriceData } from './types.js';
+import type {
+  Env,
+  TradingSignal,
+  TechnicalIndicators,
+  FearGreedIndexResponse,
+  PriceData,
+  ExitTrigger
+} from './types.js';
 import { RATINGS, TRADING_CONFIG } from './constants.js';
 import { calculateIndicators } from './indicators.js';
 import { fetchMarketData } from './market-data.js';
@@ -61,6 +68,13 @@ function calculateAllTimeHigh(historicalData: PriceData[]): number {
 /**
  * Generate human-readable reasoning for the signal
  */
+type ExitReasoningContext = {
+  entryPrice?: number;
+  exitTrigger?: ExitTrigger;
+  bollingerSellTarget?: number;
+  hasPositiveProfit?: boolean;
+};
+
 function generateReasoning(
   signal: TradingSignal['signal'],
   conditionA: boolean,
@@ -69,9 +83,12 @@ function generateReasoning(
   indicators: TechnicalIndicators,
   hasActivePosition: boolean = false,
   sellTarget?: number,
-  currentPrice?: number
+  currentPrice?: number,
+  exitContext: ExitReasoningContext = {}
 ): string {
   const reasons: string[] = [];
+  const { entryPrice, exitTrigger, bollingerSellTarget, hasPositiveProfit } = exitContext;
+  const profitIsNegative = hasPositiveProfit === false && typeof entryPrice === 'number' && typeof currentPrice === 'number';
 
   if (signal === 'BUY') {
     reasons.push('BUY signal triggered');
@@ -86,18 +103,37 @@ function generateReasoning(
     }
   } else if (signal === 'SELL') {
     reasons.push('SELL signal triggered');
-    reasons.push('Price reached all-time high');
+    if (exitTrigger === 'BOLLINGER_UPPER') {
+      reasons.push('Price reached Bollinger Band upper target');
+    } else {
+      reasons.push('Price reached all-time high');
+    }
   } else {
     // HOLD signal
     if (hasActivePosition) {
       // User has an active position - explain why it's HOLD
       reasons.push('HOLD - You have an active position');
       if (sellTarget && currentPrice) {
-        const distanceToTarget = sellTarget - currentPrice;
-        const percentToTarget = ((distanceToTarget / currentPrice) * 100).toFixed(2);
-        reasons.push(`Price has not reached the sell target (all-time high: $${sellTarget.toFixed(2)}, currently $${currentPrice.toFixed(2)}, ${percentToTarget}% away)`);
+        const targets: string[] = [];
+        const athDistance = sellTarget - currentPrice;
+        const athPercent = ((athDistance / currentPrice) * 100).toFixed(2);
+        targets.push(`ATH: $${sellTarget.toFixed(2)} (${athPercent}% away)`);
+
+        if (bollingerSellTarget) {
+          const bbDistance = bollingerSellTarget - currentPrice;
+          const bbPercent = ((bbDistance / currentPrice) * 100).toFixed(2);
+          targets.push(`BB upper: $${bollingerSellTarget.toFixed(2)} (${bbPercent}% away)`);
+        }
+
+        reasons.push(`Price has not reached the sell targets (${targets.join('; ')}), currently $${currentPrice.toFixed(2)}`);
       } else {
-        reasons.push('Waiting for price to reach all-time high before SELL signal');
+        reasons.push('Waiting for price to reach the configured sell targets before SELL signal');
+      }
+
+      if (profitIsNegative) {
+        const drawdown = entryPrice - currentPrice;
+        const drawdownPercent = ((drawdown / entryPrice) * 100).toFixed(2);
+        reasons.push(`Holding until the position is back in profit (entry $${entryPrice.toFixed(2)}, currently $${currentPrice.toFixed(2)}, down ${drawdownPercent}%)`);
       }
     } else {
       // No active position - explain why entry conditions aren't met
@@ -195,16 +231,28 @@ export async function evaluateTradingSignal(
   let signal: TradingSignal['signal'] = 'HOLD';
   let sellTarget: number | undefined;
   let entryPrice: number | undefined;
+  let exitTrigger: ExitTrigger | undefined;
+  let bollingerSellTargetValue: number | undefined;
+  let hasPositiveProfitFlag: boolean | undefined;
 
   if (activePosition) {
     // User has an active position for this ticker, check for SELL signal only
     entryPrice = activePosition.entryPrice;
-    sellTarget = calculateAllTimeHigh(marketData.historicalData);
+    const allTimeHighTarget = calculateAllTimeHigh(marketData.historicalData);
+    const bollingerSellTarget = indicators.bollingerUpper * (1 + TRADING_CONFIG.BB_UPPER_THRESHOLD);
+    sellTarget = allTimeHighTarget;
 
-    // SELL signal: price reached all-time high
-    if (currentPrice >= sellTarget) {
+    const hasPositiveProfit = currentPrice > entryPrice;
+    const reachedAllTimeHigh = currentPrice >= allTimeHighTarget;
+    const reachedBollingerUpper = currentPrice >= bollingerSellTarget;
+
+    if (hasPositiveProfit && (reachedAllTimeHigh || reachedBollingerUpper)) {
       signal = 'SELL';
+      exitTrigger = reachedAllTimeHigh ? 'ALL_TIME_HIGH' : 'BOLLINGER_UPPER';
+      sellTarget = exitTrigger === 'ALL_TIME_HIGH' ? allTimeHighTarget : bollingerSellTarget;
     }
+    bollingerSellTargetValue = bollingerSellTarget;
+    hasPositiveProfitFlag = hasPositiveProfit;
     // Otherwise signal remains HOLD (user has position, no new BUY signal)
   } else {
     // No active position, check for BUY signal
@@ -225,7 +273,13 @@ export async function evaluateTradingSignal(
     indicators,
     activePosition !== null,
     sellTarget,
-    currentPrice
+    currentPrice,
+    {
+      entryPrice,
+      exitTrigger,
+      bollingerSellTarget: bollingerSellTargetValue,
+      hasPositiveProfit: hasPositiveProfitFlag
+    }
   );
 
   return {
@@ -237,6 +291,8 @@ export async function evaluateTradingSignal(
     conditionC,
     entryPrice,
     sellTarget,
+    bollingerSellTarget: bollingerSellTargetValue,
+    exitTrigger,
     reasoning
   };
 }
@@ -305,7 +361,16 @@ export function formatTradingSignalMessage(
     }
 
     if (sellTarget) {
-      message += `🎯 Sell Target: $${sellTarget.toFixed(2)}\n`;
+    const targetLabel = signal.exitTrigger === 'BOLLINGER_UPPER'
+      ? 'Sell Target (BB Upper)'
+      : signal.exitTrigger === 'ALL_TIME_HIGH'
+        ? 'Sell Target (ATH)'
+        : 'Sell Target';
+    message += `🎯 ${targetLabel}: $${sellTarget.toFixed(2)}\n`;
+  }
+
+  if (signal.bollingerSellTarget && (sellTarget === undefined || signal.bollingerSellTarget !== sellTarget)) {
+    message += `🎯 BB Upper Target: $${signal.bollingerSellTarget.toFixed(2)}\n`;
     }
   }
 

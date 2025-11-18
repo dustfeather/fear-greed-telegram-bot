@@ -51,6 +51,56 @@ function createMockMarketData(currentPrice = 400, days = 200) {
   };
 }
 
+function createStaticMarketData({
+  currentPrice = 150,
+  closeValue = 100,
+  days = 40,
+  highValue = closeValue * 1.01,
+  spikeHighValue
+} = {}) {
+  const timestamps = [];
+  const opens = [];
+  const highs = [];
+  const lows = [];
+  const closes = [];
+  const volumes = [];
+  const baseTime = Math.floor(Date.now() / 1000);
+
+  for (let i = 0; i < days; i++) {
+    timestamps.push(baseTime - (days - i) * 86400);
+    opens.push(closeValue * 1.001);
+    highs.push(highValue);
+    lows.push(closeValue * 0.999);
+    closes.push(closeValue);
+    volumes.push(750000);
+  }
+
+  if (typeof spikeHighValue === 'number') {
+    highs[highs.length - 1] = spikeHighValue;
+  }
+
+  return {
+    chart: {
+      result: [{
+        meta: {
+          regularMarketPrice: currentPrice
+        },
+        timestamp: timestamps,
+        indicators: {
+          quote: [{
+            open: opens,
+            high: highs,
+            low: lows,
+            close: closes,
+            volume: volumes
+          }]
+        }
+      }],
+      error: null
+    }
+  };
+}
+
 // Test 1: BUY signal when all conditions met
 runner.test('BUY signal when all conditions met', async () => {
   const env = createMockEnv();
@@ -283,6 +333,88 @@ runner.test('SELL signal when price reaches all-time high', async () => {
       assert(signal.signal === 'SELL', 'Should trigger SELL when price >= all-time high');
     }
   }
+});
+
+runner.test('SELL signal when price reaches Bollinger upper target with profit', async () => {
+  const env = createMockEnv();
+  const chatId = 67890;
+  const entryPrice = 90;
+  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+
+  const marketData = createStaticMarketData({
+    currentPrice: 150,
+    closeValue: 90,
+    highValue: 95,
+    spikeHighValue: 250
+  });
+
+  const fearGreedData = {
+    rating: 'Neutral',
+    score: 50.0
+  };
+
+  const mockFetch = createMockFetch({
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => marketData
+    }),
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => fearGreedData
+    })
+  });
+
+  global.fetch = mockFetch;
+
+  const signal = await evaluateTradingSignal(env, fearGreedData, 'SPY', chatId);
+
+  assertEqual(signal.signal, 'SELL', 'Should trigger SELL when Bollinger upper exit condition met');
+  assertEqual(signal.exitTrigger, 'BOLLINGER_UPPER', 'Exit trigger should be Bollinger upper');
+  assert(signal.bollingerSellTarget, 'Should provide Bollinger sell target');
+  assert(Math.abs(signal.sellTarget - signal.bollingerSellTarget) < 1e-6, 'Sell target should match Bollinger target when that exit triggers');
+});
+
+runner.test('HOLD signal when targets hit but position not profitable', async () => {
+  const env = createMockEnv();
+  const chatId = 24680;
+  const entryPrice = 220;
+  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+
+  const currentPrice = 150;
+  const marketData = createStaticMarketData({
+    currentPrice,
+    closeValue: 140,
+    highValue: currentPrice,
+    spikeHighValue: currentPrice
+  });
+
+  const fearGreedData = {
+    rating: 'Fear',
+    score: 25.0
+  };
+
+  const mockFetch = createMockFetch({
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => marketData
+    }),
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => fearGreedData
+    })
+  });
+
+  global.fetch = mockFetch;
+
+  const signal = await evaluateTradingSignal(env, fearGreedData, 'SPY', chatId);
+
+  assertEqual(signal.signal, 'HOLD', 'Should HOLD when position is not yet profitable');
+  assert.strictEqual(signal.exitTrigger, undefined, 'Exit trigger should be undefined when still holding');
+  assert(signal.reasoning.includes('back in profit'), 'Reasoning should mention waiting for profit');
 });
 
 // Test 6: Data unavailable signal when market data fails

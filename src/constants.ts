@@ -132,6 +132,7 @@ export const TRADING_CONFIG = {
   BOLLINGER_PERIOD: 20,
   BOLLINGER_STDDEV: 2,
   BB_LOWER_THRESHOLD: 0.01, // 1% above lower band
+  BB_UPPER_THRESHOLD: 0.01, // 1% above upper band
   TRADING_FREQUENCY_DAYS: 30, // Deprecated: now using calendar month restriction
   HISTORICAL_DAYS_NEEDED: 200 // Need 200 days for SMA 200
 } as const;

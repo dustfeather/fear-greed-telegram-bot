@@ -133,6 +133,7 @@ export interface TechnicalIndicators {
  * Trading signal type
  */
 export type TradingSignalType = 'BUY' | 'SELL' | 'HOLD';
+export type ExitTrigger = 'ALL_TIME_HIGH' | 'BOLLINGER_UPPER';
 
 /**
  * Trading signal evaluation result
@@ -145,7 +146,9 @@ export interface TradingSignal {
   conditionB: boolean; // Price near BB lower (within 1%)
   conditionC: boolean; // Fear & Greed Index is fear/extreme fear
   entryPrice?: number; // Entry price if there's an active position
-  sellTarget?: number; // All-time high target for SELL
+  sellTarget?: number; // Exit target that triggered SELL (or ATH target when holding)
+  bollingerSellTarget?: number; // Bollinger-based sell target
+  exitTrigger?: ExitTrigger; // Which exit condition triggered
   reasoning: string; // Human-readable explanation
 }
 

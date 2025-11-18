@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Active positions: users with open positions only see SELL/HOLD signals (no additional BUY signals)
 - Error handling: improved graceful handling of data source failures
 - Security: enhanced input validation and URL encoding for market data fetching
+- Exit strategy: SELL now requires a profitable position and can trigger at either all-time highs or near the Bollinger upper band (within 1%)
 
 ### Technical Details
 - New modules: `market-data.ts`, `indicators.ts`, `trading-signal.ts`, `utils/trades.ts`, `utils/executions.ts`

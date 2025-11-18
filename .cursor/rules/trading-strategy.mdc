@@ -67,5 +67,7 @@ alwaysApply: false
 - **Enforcement**: Do not execute more than one trade within the same calendar month (based on month name, e.g., January, February)
 
 ## Exit Strategy (Profit-Taking)
-- **Method**: All time high
-- **Target Level**: price reached all time high
+- **Method**: All time high or near BB higher
+- **Target Level**: price reached all time high or near BB higher (within 1% of the higher band or above) and profit is positive
+- **Formula**: (currentPrice >= allTimeHigh or currentPrice >= bollingerUpperBand * 1.01) and profit is positive
+- **Action**: Execute SELL order when all conditions are met
