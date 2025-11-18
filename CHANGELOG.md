@@ -44,6 +44,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Enhanced security in `fetchMarketData()` with input validation and URL encoding to prevent URL injection attacks
 - Improved URL construction in `fetchMarketData()` using direct string interpolation instead of regex replacement
 - Added comprehensive error logging for Yahoo Finance API failures to aid in debugging
+- Added color-coded indicators to trading signals: 🟢 (green) for BUY, 🟡 (yellow) for HOLD, 🔴 (red) for SELL
+- Added TradingView chart links to ticker prices in trading signal messages (e.g., [SPY Price](https://www.tradingview.com/chart/?symbol=SPY))
 
 ### Technical Details
 - New modules:

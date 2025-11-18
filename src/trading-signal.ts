@@ -270,7 +270,9 @@ export function formatTradingSignalMessage(
     indicators.sma100 === 0 && 
     indicators.sma200 === 0;
 
-  let message = `📊 *Trading Signal: ${signalType}*\n\n`;
+  // Color-coded signal indicators
+  const signalEmoji = signalType === 'BUY' ? '🟢' : signalType === 'SELL' ? '🔴' : '🟡';
+  let message = `${signalEmoji} *Trading Signal: ${signalType}*\n\n`;
 
   if (isDataUnavailable) {
     // Simplified message format for data unavailable cases
@@ -285,7 +287,8 @@ export function formatTradingSignalMessage(
     }
   } else {
     // Full message format with all data
-    message += `💰 Current ${ticker} Price: $${currentPrice.toFixed(2)}\n\n`;
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${ticker}`;
+    message += `💰 Current [${ticker} Price](${tradingViewUrl}): $${currentPrice.toFixed(2)}\n\n`;
 
     message += `*Technical Indicators:*\n`;
     message += `• SMA 20: $${indicators.sma20.toFixed(2)}\n`;
