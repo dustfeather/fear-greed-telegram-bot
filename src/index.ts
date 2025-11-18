@@ -270,15 +270,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           if (signalType === 'BUY') {
             await setActivePosition(env.FEAR_GREED_KV, chatId, ticker, executionPrice);
           } else if (signalType === 'SELL') {
+            // SELL execution closes ALL open positions for this ticker
             await clearActivePosition(env.FEAR_GREED_KV, chatId);
           }
           
           const signalEmoji = signalType === 'BUY' ? '🟢' : '🔴';
-          await sendTelegramMessage(
-            chatId,
-            `${signalEmoji} *Execution Recorded*\n\n*Signal:* ${signalType}\n*Ticker:* ${ticker}\n*Price:* $${executionPrice.toFixed(2)}\n\nExecution has been recorded in your history.`,
-            env
-          );
+          let executionMessage = `${signalEmoji} *Execution Recorded*\n\n*Signal:* ${signalType}\n*Ticker:* ${ticker}\n*Price:* $${executionPrice.toFixed(2)}`;
+          
+          if (signalType === 'SELL') {
+            executionMessage += `\n\n✅ All open positions for ${ticker} have been closed.`;
+          }
+          
+          executionMessage += `\n\nExecution has been recorded in your history.`;
+          
+          await sendTelegramMessage(chatId, executionMessage, env);
         } catch (error) {
           console.error('Error recording execution:', error);
           await sendTelegramMessage(

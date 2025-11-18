@@ -116,6 +116,7 @@ export async function recordTrade(_kv: KVNamespace, _entryPrice: number): Promis
 
 /**
  * Clear active position for a user (when SELL signal is executed)
+ * This closes ALL open positions for the ticker associated with the active position.
  * @param kv - KV namespace
  * @param chatId - User's chat ID
  * @returns Promise resolving to void
