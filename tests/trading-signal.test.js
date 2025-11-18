@@ -45,7 +45,8 @@ function createMockMarketData(currentPrice = 400, days = 200) {
             volume: volumes
           }]
         }
-      }]
+      }],
+      error: null
     }
   };
 }

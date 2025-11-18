@@ -41,17 +41,22 @@ export async function fetchMarketData(): Promise<MarketDataResponse> {
         timestamp?: number[];
         indicators?: {
           quote?: Array<{
-            open?: number[];
-            high?: number[];
-            low?: number[];
-            close?: number[];
-            volume?: number[];
+            open?: (number | null)[];
+            high?: (number | null)[];
+            low?: (number | null)[];
+            close?: (number | null)[];
+            volume?: (number | null)[];
           }>;
         };
       }>;
       error?: unknown;
     };
   };
+
+  // Check for API errors
+  if (data.chart?.error) {
+    throw createApiError('Yahoo Finance API returned an error', data.chart.error);
+  }
 
   if (!data.chart?.result || data.chart.result.length === 0) {
     throw createApiError('Invalid market data response structure', data);

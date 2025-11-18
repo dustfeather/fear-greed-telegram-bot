@@ -8,6 +8,49 @@ import assert from 'node:assert';
 
 const runner = new TestRunner();
 
+// Helper to create mock market data response
+function createMockMarketData(currentPrice = 400, days = 200) {
+  const timestamps = [];
+  const closes = [];
+  const opens = [];
+  const highs = [];
+  const lows = [];
+  const volumes = [];
+  
+  const baseTime = Math.floor(Date.now() / 1000);
+  
+  for (let i = 0; i < days; i++) {
+    const price = currentPrice - (days - i) * 0.5; // Slight upward trend
+    timestamps.push(baseTime - (days - i) * 86400);
+    closes.push(price);
+    opens.push(price * 0.999);
+    highs.push(price * 1.01);
+    lows.push(price * 0.99);
+    volumes.push(1000000);
+  }
+  
+  return {
+    chart: {
+      result: [{
+        meta: {
+          regularMarketPrice: currentPrice
+        },
+        timestamp: timestamps,
+        indicators: {
+          quote: [{
+            open: opens,
+            high: highs,
+            low: lows,
+            close: closes,
+            volume: volumes
+          }]
+        }
+      }],
+      error: null
+    }
+  };
+}
+
 // Test 1: Fetch Fear and Greed Index successfully
 runner.test('Fetch Fear and Greed Index successfully', async () => {
   const env = createMockEnv();
@@ -23,6 +66,11 @@ runner.test('Fetch Fear and Greed Index successfully', async () => {
         score: 50.5,
         timestamp: new Date().toISOString()
       })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
     }),
     'quickchart.io': () => ({
       ok: true,
@@ -65,6 +113,11 @@ runner.test('Send to all subscribers on fear rating', async () => {
         timestamp: new Date().toISOString()
       })
     }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
     'quickchart.io': () => ({
       ok: true,
       status: 200,
@@ -105,6 +158,11 @@ runner.test('Send to all subscribers on extreme fear rating', async () => {
         timestamp: new Date().toISOString()
       })
     }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
     'quickchart.io': () => ({
       ok: true,
       status: 200,
@@ -137,6 +195,11 @@ runner.test('Handle API errors gracefully', async () => {
     'production.dataviz.cnn.io': () => {
       throw new Error('CNN API error');
     },
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
     'api.telegram.org': (options) => {
       const body = JSON.parse(options.body);
       if (body.chat_id === env.ADMIN_CHAT_ID) {
@@ -172,6 +235,11 @@ runner.test('Don\'t send when rating is neutral and no specific chat', async () 
         score: 75.0,
         timestamp: new Date().toISOString()
       })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
     }),
     'quickchart.io': () => ({
       ok: true,
@@ -211,6 +279,11 @@ runner.test('Verify message format includes chart URL', async () => {
         score: 50.0,
         timestamp: new Date().toISOString()
       })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
     }),
     'quickchart.io': () => ({
       ok: true,
