@@ -152,6 +152,72 @@ runner.test('Trading frequency limit enforcement', async () => {
   
   // Should indicate trading not allowed
   assert(signal.canTrade === false, 'Should not allow trading within 30 days');
+  
+  // If all conditions are met, signal should still be BUY (signal is valid)
+  // The frequency limit only prevents recording a new trade, not from showing the signal is valid
+  const entryCondition = (signal.conditionA || signal.conditionB) && signal.conditionC;
+  if (entryCondition) {
+    assert(signal.signal === 'BUY', 'Should be BUY when conditions are met, even if trading is limited');
+    assert(signal.reasoning.includes('BUY signal triggered'), 
+      'Reasoning should indicate BUY signal is triggered');
+    assert(signal.reasoning.includes('Trading frequency limit'), 
+      'Reasoning should mention trading frequency limit as a note');
+    // Should have entry price from last trade if available
+    if (signal.entryPrice) {
+      assertEqual(signal.entryPrice, lastTrade.entryPrice, 'Should use last trade entry price when trading is limited');
+    }
+  }
+});
+
+// Test 3b: BUY signal valid even when trade executed today (0 days ago)
+runner.test('BUY signal valid when trade executed today', async () => {
+  const env = createMockEnv();
+  
+  // Set last trade to today (0 days ago) - trade was executed today
+  const lastTrade = {
+    entryPrice: 400,
+    entryDate: Date.now(), // Today
+    signalType: 'BUY'
+  };
+  await env.FEAR_GREED_KV.put('last_trade', JSON.stringify(lastTrade));
+  
+  // Don't set active position - simulate scenario where position might not be set
+  // or was cleared, but trade was recorded today
+  
+  const currentPrice = 380; // Below SMAs, conditions still met
+  const fearGreedData = {
+    rating: 'Extreme Fear',
+    score: 15.0
+  };
+  
+  const mockFetch = createMockFetch({
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(currentPrice)
+    }),
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => fearGreedData
+    })
+  });
+  
+  global.fetch = mockFetch;
+  
+  const signal = await evaluateTradingSignal(env, fearGreedData);
+  
+  // Trading not allowed (0 days < 30 days)
+  assert(signal.canTrade === false, 'Should not allow trading when trade was executed today');
+  
+  // But signal should still be BUY because conditions are met
+  const entryCondition = (signal.conditionA || signal.conditionB) && signal.conditionC;
+  if (entryCondition) {
+    assert(signal.signal === 'BUY', 'Should show BUY signal when conditions are met, even if trade was executed today');
+    assert(signal.entryPrice === lastTrade.entryPrice, 'Should use last trade entry price');
+    assert(signal.reasoning.includes('BUY signal triggered'), 'Should indicate BUY signal is triggered');
+    assert(signal.reasoning.includes('Trading frequency limit'), 'Should mention trading frequency limit');
+  }
 });
 
 // Test 4: Format trading signal message

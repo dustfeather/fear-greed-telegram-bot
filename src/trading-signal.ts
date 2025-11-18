@@ -84,12 +84,13 @@ function generateReasoning(
       reasons.push('Fear & Greed Index indicates fear/extreme fear');
     }
     if (!canTrade) {
-      reasons.push('⚠️ Trading frequency limit: Must wait 30 days since last trade');
+      reasons.push('⚠️ Note: Trading frequency limit active (must wait 30 days since last trade to execute another trade)');
     }
   } else if (signal === 'SELL') {
     reasons.push('SELL signal triggered');
     reasons.push('Price reached all-time high');
   } else {
+    // HOLD signal - conditions are not met
     reasons.push('HOLD - No trading signal');
     if (!conditionA && !conditionB) {
       reasons.push('Price is not below SMAs or near BB lower');
@@ -195,16 +196,24 @@ export async function evaluateTradingSignal(
     // No active position, check for BUY signal
     const entryCondition = (conditionA || conditionB) && conditionC;
 
-    if (entryCondition && tradingAllowed) {
+    if (entryCondition) {
+      // Entry conditions are met - signal is valid
       signal = 'BUY';
-      // Record trade when BUY signal is generated
-      await recordTrade(env.FEAR_GREED_KV, currentPrice).catch(err => {
-        console.error('Failed to record trade:', err);
-      });
-      entryPrice = currentPrice;
-    } else if (entryCondition && !tradingAllowed) {
-      // Conditions met but trading not allowed due to frequency limit
-      signal = 'HOLD';
+      
+      // Only record a new trade if trading is allowed (30 days have passed since last trade)
+      // If a trade was executed today (0 days ago), the signal is still valid but we don't record another trade
+      if (tradingAllowed) {
+        // Record trade when BUY signal is generated and trading is allowed
+        await recordTrade(env.FEAR_GREED_KV, currentPrice).catch(err => {
+          console.error('Failed to record trade:', err);
+        });
+        entryPrice = currentPrice;
+      } else {
+        // Signal is valid but trading is limited - use last trade entry price if available
+        if (lastTrade) {
+          entryPrice = lastTrade.entryPrice;
+        }
+      }
     }
   }
 

@@ -48,6 +48,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added TradingView chart links to ticker prices in trading signal messages (e.g., [SPY Price](https://www.tradingview.com/chart/?symbol=SPY))
 - Fixed insufficient historical data issue by requesting 1.5x calendar days to account for weekends and holidays
 - Made indicator calculation more flexible to handle cases with less than 200 trading days (uses fallback values with warnings)
+- Improved trading signal reasoning messages to clearly explain when entry conditions are met but trading is blocked by the 30-day frequency limit
+- Fixed trading signal logic: BUY signals now show as valid when entry conditions are met, even if a trade was executed today (0 days ago). The frequency limit only prevents recording a new trade, not from showing that the signal conditions are valid
 
 ### Technical Details
 - New modules:
