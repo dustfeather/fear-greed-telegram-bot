@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     name: Deploy to Cloudflare Workers
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: self-hosted
     timeout-minutes: 60
 
     steps:
