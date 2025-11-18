@@ -3,7 +3,7 @@ import { sub, unsub } from './subs.js';
 import { handleScheduled } from './sched.js';
 import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './send.js';
 import type { Env, TelegramUpdate } from './types.js';
-import { COMMANDS, MESSAGES, TRADING_CONFIG } from './constants.js';
+import { COMMANDS, MESSAGES } from './constants.js';
 import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './utils/response.js';
 import { isValidTicker } from './utils/validation.js';
 import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './utils/executions.js';

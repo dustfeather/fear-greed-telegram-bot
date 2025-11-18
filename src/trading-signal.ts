@@ -81,7 +81,7 @@ type ExitReasoningContext = {
 function generateReasoning(
   signal: TradingSignal['signal'],
   conditionA: boolean,
-  conditionB: boolean,
+  _conditionB: boolean,
   conditionC: boolean,
   indicators: TechnicalIndicators,
   hasActivePosition: boolean = false,
