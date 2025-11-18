@@ -4,17 +4,17 @@
 
 import type { KVNamespace } from '@cloudflare/workers-types';
 import type { TradeRecord, ActivePosition } from '../types.js';
-import { activePositionKey, TRADING_CONFIG } from '../constants.js';
+import { activePositionKey } from '../constants.js';
 import { getLatestExecution } from './executions.js';
 import { createKVError } from './errors.js';
 
 /**
  * Get the last trade record from KV (deprecated - use getLatestExecution instead)
- * @param kv - KV namespace
- * @param chatId - User's chat ID
+ * @param _kv - KV namespace (unused)
+ * @param _chatId - User's chat ID (unused)
  * @returns Last trade record or null if none exists
  */
-export async function getLastTrade(kv: KVNamespace, chatId?: number | string): Promise<TradeRecord | null> {
+export async function getLastTrade(_kv: KVNamespace, _chatId?: number | string): Promise<TradeRecord | null> {
   // This function is kept for backward compatibility but is deprecated
   // New code should use getLatestExecution from executions.ts
   return null;
@@ -104,11 +104,11 @@ export function getMonthName(date: Date | number): string {
 /**
  * Record a new trade (BUY signal executed)
  * @deprecated This function is deprecated. Use recordExecution from executions.ts instead.
- * @param kv - KV namespace
- * @param entryPrice - Entry price for the trade
+ * @param _kv - KV namespace (unused)
+ * @param _entryPrice - Entry price for the trade (unused)
  * @returns Promise resolving to void
  */
-export async function recordTrade(kv: KVNamespace, entryPrice: number): Promise<void> {
+export async function recordTrade(_kv: KVNamespace, _entryPrice: number): Promise<void> {
   // This function is deprecated and should not be used
   // New code should use recordExecution from executions.ts
   console.warn('recordTrade() is deprecated. Use recordExecution() instead.');
