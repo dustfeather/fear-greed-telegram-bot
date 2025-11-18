@@ -66,7 +66,10 @@ function generateReasoning(
   conditionA: boolean,
   conditionB: boolean,
   conditionC: boolean,
-  indicators: TechnicalIndicators
+  indicators: TechnicalIndicators,
+  hasActivePosition: boolean = false,
+  sellTarget?: number,
+  currentPrice?: number
 ): string {
   const reasons: string[] = [];
 
@@ -85,13 +88,26 @@ function generateReasoning(
     reasons.push('SELL signal triggered');
     reasons.push('Price reached all-time high');
   } else {
-    // HOLD signal - conditions are not met or user has active position
-    reasons.push('HOLD - No trading signal');
-    if (!conditionA && !conditionB) {
-      reasons.push('Price is not below SMAs or near BB lower');
-    }
-    if (!conditionC) {
-      reasons.push('Fear & Greed Index is not in fear/extreme fear');
+    // HOLD signal
+    if (hasActivePosition) {
+      // User has an active position - explain why it's HOLD
+      reasons.push('HOLD - You have an active position');
+      if (sellTarget && currentPrice) {
+        const distanceToTarget = sellTarget - currentPrice;
+        const percentToTarget = ((distanceToTarget / currentPrice) * 100).toFixed(2);
+        reasons.push(`Price has not reached the sell target (all-time high: $${sellTarget.toFixed(2)}, currently $${currentPrice.toFixed(2)}, ${percentToTarget}% away)`);
+      } else {
+        reasons.push('Waiting for price to reach all-time high before SELL signal');
+      }
+    } else {
+      // No active position - explain why entry conditions aren't met
+      reasons.push('HOLD - Entry conditions not met');
+      if (!conditionA && !conditionB) {
+        reasons.push('Price is not below SMAs or near BB lower');
+      }
+      if (!conditionC) {
+        reasons.push('Fear & Greed Index is not in fear/extreme fear');
+      }
     }
   }
 
@@ -206,7 +222,10 @@ export async function evaluateTradingSignal(
     conditionA,
     conditionB,
     conditionC,
-    indicators
+    indicators,
+    activePosition !== null,
+    sellTarget,
+    currentPrice
   );
 
   return {
