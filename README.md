@@ -2,20 +2,27 @@
 
 ![Logo](misc/logo.png)
 
-This project is a Telegram bot that provides updates on the Fear and Greed Index. Users can subscribe to receive alerts when the index indicates fear or extreme fear.
+This project is a Telegram bot that provides updates on the Fear and Greed Index and automated trading signals. Users can subscribe to receive alerts when the index indicates fear or extreme fear, and get trading recommendations based on technical indicators.
 
 ## Features
 
 - Subscribe to Fear and Greed Index alerts
 - Unsubscribe from alerts
 - Get the current Fear and Greed Index rating
+- Trading signal feature: automated buy/sell recommendations based on technical indicators (SMA, Bollinger Bands) and Fear & Greed Index
+- Market data integration: fetch price data from Yahoo Finance for any ticker symbol
+- Per-user execution tracking: record and view your trading signal executions
 - Help command to show available commands
 
 ## Commands
 
 - `/start` - Subscribe to Fear and Greed Index alerts.
 - `/stop` - Unsubscribe from Fear and Greed Index alerts.
-- `/now` - Get the current Fear and Greed Index rating.
+- `/now` - Get the current Fear and Greed Index rating and trading signal (default: SPY).
+- `/now TICKER` - Get trading signal for a specific ticker (e.g., `/now AAPL`).
+- `/execute TICKER PRICE [DATE]` - Record execution of a signal at a specific price (e.g., `/execute SPY 400.50`). Optionally specify date as YYYY-MM-DD (e.g., `/execute SPY 400.50 2024-01-15`).
+- `/executions` - View your execution history.
+- `/executions TICKER` - View execution history for a specific ticker (e.g., `/executions SPY`).
 - `/help` - Show help message.
 
 ## Installation
@@ -134,6 +141,8 @@ The test scripts will verify:
 - `/stop` command
 - `/help` command
 - `/now` command
+- `/execute` command
+- `/executions` command
 - Unknown commands
 - Invalid payloads
 - GET requests (should return 405)
@@ -182,7 +191,10 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
    - `/start` - Subscribe to alerts
    - `/stop` - Unsubscribe
    - `/help` - Show help
-   - `/now` - Get current index
+   - `/now` - Get current Fear & Greed Index and trading signal (default: SPY)
+   - `/now TICKER` - Get trading signal for a specific ticker
+   - `/execute TICKER PRICE [DATE]` - Record signal execution
+   - `/executions` - View execution history
 
 ![Bot Screenshot](misc/screenshot.png)
 
@@ -193,7 +205,13 @@ curl "http://localhost:8787/__scheduled?cron=0+*+*+*+*"
 - `src/index.ts` - Main Worker entry point (HTTP and scheduled handlers)
 - `src/send.ts` - Telegram message sending utilities
 - `src/subs.ts` - Subscription management (KV storage)
-- `src/sched.ts` - Scheduled event handler (Fear & Greed Index fetching)
+- `src/sched.ts` - Scheduled event handler (Fear & Greed Index fetching and trading signals)
 - `src/chart.ts` - Chart generation using QuickChart
+- `src/market-data.ts` - Market data fetching from Yahoo Finance
+- `src/indicators.ts` - Technical indicator calculations (SMA, Bollinger Bands)
+- `src/trading-signal.ts` - Trading signal evaluation logic
+- `src/utils/trades.ts` - Trade history and frequency limit management
+- `src/utils/executions.ts` - Per-user execution tracking
+- `src/utils/validation.ts` - Input validation utilities
 - `scripts/generate-wrangler-config.js` - Script to generate wrangler.jsonc from environment variables
 - `.dev.vars.example` - Example file for local development secrets
