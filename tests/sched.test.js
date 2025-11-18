@@ -191,6 +191,8 @@ runner.test('Handle API errors gracefully', async () => {
   const chatId = 123456789;
   
   let adminCallCount = 0;
+  let userCallCount = 0;
+  let capturedUserMessage = null;
   const mockFetch = createMockFetch({
     'production.dataviz.cnn.io': () => {
       throw new Error('CNN API error');
@@ -204,6 +206,9 @@ runner.test('Handle API errors gracefully', async () => {
       const body = JSON.parse(options.body);
       if (body.chat_id === env.ADMIN_CHAT_ID) {
         adminCallCount++;
+      } else if (body.chat_id === chatId) {
+        userCallCount++;
+        capturedUserMessage = body.text;
       }
       return {
         ok: true,
@@ -219,6 +224,10 @@ runner.test('Handle API errors gracefully', async () => {
   
   // Should notify admin about the error
   assertEqual(adminCallCount, 1, 'Should notify admin about error');
+  // Should still send HOLD signal to user even when Fear & Greed Index fails
+  assertEqual(userCallCount, 1, 'Should send signal to user even on error');
+  assert(capturedUserMessage.includes('HOLD'), 'Should send HOLD signal');
+  assert(capturedUserMessage.includes('Data Unavailable'), 'Should indicate data unavailable');
 });
 
 // Test 5: Don't send when rating is not fear/extreme fear and no specific chat
@@ -316,6 +325,105 @@ runner.test('Verify message format includes chart URL', async () => {
   
   assert(capturedMessage.includes('50.00%'), 'Message should include score');
   assert(capturedMessage.includes('NEUTRAL'), 'Message should include rating');
+  // Verify that trading signal is always included
+  assert(capturedMessage.includes('Trading Signal'), 'Message should always include trading signal');
+});
+
+// Test 7: Verify signal is always sent when market data fails
+runner.test('Verify signal is always sent when market data fails', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  
+  let capturedMessage = null;
+  const mockFetch = createMockFetch({
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rating: 'Neutral',
+        score: 50.0,
+        timestamp: new Date().toISOString()
+      })
+    }),
+    'query1.finance.yahoo.com': () => {
+      throw new Error('Yahoo Finance API error');
+    },
+    'quickchart.io': () => ({
+      ok: true,
+      status: 200,
+      url: 'https://quickchart.io/chart?c=test123'
+    }),
+    'api.telegram.org': (options) => {
+      const body = JSON.parse(options.body);
+      if (body.chat_id === chatId) {
+        capturedMessage = body.text;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  await handleScheduled(chatId, env);
+  
+  // Should send message with trading signal even when market data fails
+  assert(capturedMessage !== null, 'Should send message to user');
+  assert(capturedMessage.includes('Trading Signal'), 'Message should include trading signal');
+  assert(capturedMessage.includes('HOLD'), 'Should send HOLD signal when data unavailable');
+  assert(capturedMessage.includes('Data Unavailable') || capturedMessage.includes('Insufficient data'), 'Should indicate data unavailable');
+});
+
+// Test 8: Verify signal is always sent for /now command even when conditions not met
+runner.test('Verify signal is always sent for /now command', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  
+  let capturedMessage = null;
+  const mockFetch = createMockFetch({
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rating: 'Greed',
+        score: 75.0,
+        timestamp: new Date().toISOString()
+      })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
+    'quickchart.io': () => ({
+      ok: true,
+      status: 200,
+      url: 'https://quickchart.io/chart?c=test123'
+    }),
+    'api.telegram.org': (options) => {
+      const body = JSON.parse(options.body);
+      if (body.chat_id === chatId) {
+        capturedMessage = body.text;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  await handleScheduled(chatId, env);
+  
+  // Should send trading signal even when rating is not fear/extreme fear
+  assert(capturedMessage !== null, 'Should send message to user');
+  assert(capturedMessage.includes('Trading Signal'), 'Message should always include trading signal');
+  assert(capturedMessage.includes('HOLD') || capturedMessage.includes('BUY') || capturedMessage.includes('SELL'), 'Should include a valid signal type');
 });
 
 // Run tests

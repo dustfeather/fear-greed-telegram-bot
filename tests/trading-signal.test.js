@@ -227,6 +227,48 @@ runner.test('SELL signal when price reaches Fibonacci target', async () => {
   }
 });
 
+// Test 6: Data unavailable signal when market data fails
+runner.test('Data unavailable signal when market data fails', async () => {
+  const { createDataUnavailableSignal, formatTradingSignalMessage } = await import('../src/trading-signal.js');
+  
+  const fearGreedData = {
+    rating: 'Neutral',
+    score: 50.0
+  };
+  
+  // Create signal when market data is unavailable but Fear & Greed Index is available
+  const signal = createDataUnavailableSignal(fearGreedData);
+  
+  assert(signal.signal === 'HOLD', 'Should be HOLD signal');
+  assert(signal.currentPrice === 0, 'Should have placeholder price');
+  assert(signal.reasoning.includes('Insufficient data'), 'Should mention insufficient data');
+  assert(signal.reasoning.includes('Market data unavailable'), 'Should mention market data unavailable');
+  
+  // Test formatting
+  const message = formatTradingSignalMessage(signal, fearGreedData);
+  assert(message.includes('HOLD'), 'Message should include HOLD');
+  assert(message.includes('Data Unavailable'), 'Message should indicate data unavailable');
+  assert(message.includes('Fear & Greed Index'), 'Message should include Fear & Greed Index if available');
+});
+
+// Test 7: Data unavailable signal when all data fails
+runner.test('Data unavailable signal when all data fails', async () => {
+  const { createDataUnavailableSignal, formatTradingSignalMessage } = await import('../src/trading-signal.js');
+  
+  // Create signal when all data is unavailable
+  const signal = createDataUnavailableSignal();
+  
+  assert(signal.signal === 'HOLD', 'Should be HOLD signal');
+  assert(signal.currentPrice === 0, 'Should have placeholder price');
+  assert(signal.reasoning.includes('Insufficient data'), 'Should mention insufficient data');
+  assert(signal.reasoning.includes('Fear & Greed Index data unavailable'), 'Should mention Fear & Greed Index unavailable');
+  
+  // Test formatting
+  const message = formatTradingSignalMessage(signal);
+  assert(message.includes('HOLD'), 'Message should include HOLD');
+  assert(message.includes('Data Unavailable'), 'Message should indicate data unavailable');
+});
+
 // Run tests
 runner.run().catch(console.error);
 

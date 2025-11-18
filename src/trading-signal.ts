@@ -119,6 +119,46 @@ function generateReasoning(
 }
 
 /**
+ * Create a HOLD signal when data sources are unavailable
+ * @param fearGreedData - Fear & Greed Index data (may be unavailable)
+ * @returns Trading signal with HOLD and data unavailability reasoning
+ */
+export function createDataUnavailableSignal(
+  fearGreedData?: FearGreedIndexResponse
+): TradingSignal {
+  // Create default indicators (all zeros as placeholders)
+  const defaultIndicators: TechnicalIndicators = {
+    sma20: 0,
+    sma50: 0,
+    sma100: 0,
+    sma200: 0,
+    bollingerUpper: 0,
+    bollingerMiddle: 0,
+    bollingerLower: 0
+  };
+
+  // Build reasoning based on what data is available
+  const reasons: string[] = ['HOLD - Insufficient data to evaluate trading conditions'];
+  
+  if (!fearGreedData) {
+    reasons.push('Fear & Greed Index data unavailable');
+  } else {
+    reasons.push('Market data unavailable');
+  }
+
+  return {
+    signal: 'HOLD',
+    currentPrice: 0, // Placeholder value
+    indicators: defaultIndicators,
+    conditionA: false,
+    conditionB: false,
+    conditionC: false,
+    canTrade: false,
+    reasoning: reasons.join('. ') + '.'
+  };
+}
+
+/**
  * Evaluate trading signal based on strategy rules
  * @param env - Environment variables
  * @param fearGreedData - Fear & Greed Index data
@@ -208,45 +248,69 @@ export async function evaluateTradingSignal(
 /**
  * Format trading signal as a human-readable message
  * @param signal - Trading signal evaluation result
- * @param fearGreedData - Fear & Greed Index data
+ * @param fearGreedData - Fear & Greed Index data (optional, may be unavailable)
  * @returns Formatted message string
  */
 export function formatTradingSignalMessage(
   signal: TradingSignal,
-  fearGreedData: FearGreedIndexResponse
+  fearGreedData?: FearGreedIndexResponse
 ): string {
   const { signal: signalType, currentPrice, indicators, reasoning, entryPrice, sellTarget } = signal;
 
+  // Check if this is a data unavailable signal (currentPrice is 0 and indicators are all zeros)
+  const isDataUnavailable = currentPrice === 0 && 
+    indicators.sma20 === 0 && 
+    indicators.sma50 === 0 && 
+    indicators.sma100 === 0 && 
+    indicators.sma200 === 0;
+
   let message = `📊 *Trading Signal: ${signalType}*\n\n`;
-  message += `💰 Current SPY Price: $${currentPrice.toFixed(2)}\n\n`;
 
-  message += `*Technical Indicators:*\n`;
-  message += `• SMA 20: $${indicators.sma20.toFixed(2)}\n`;
-  message += `• SMA 50: $${indicators.sma50.toFixed(2)}\n`;
-  message += `• SMA 100: $${indicators.sma100.toFixed(2)}\n`;
-  message += `• SMA 200: $${indicators.sma200.toFixed(2)}\n`;
-  message += `• BB Upper: $${indicators.bollingerUpper.toFixed(2)}\n`;
-  message += `• BB Middle: $${indicators.bollingerMiddle.toFixed(2)}\n`;
-  message += `• BB Lower: $${indicators.bollingerLower.toFixed(2)}\n\n`;
+  if (isDataUnavailable) {
+    // Simplified message format for data unavailable cases
+    message += `⚠️ *Data Unavailable*\n\n`;
+    
+    if (fearGreedData) {
+      message += `*Fear & Greed Index:* ${fearGreedData.rating} (${fearGreedData.score.toFixed(2)}%)\n`;
+      message += `Market data (SPY price and indicators) unavailable.\n\n`;
+    } else {
+      message += `Fear & Greed Index data unavailable.\n`;
+      message += `Market data (SPY price and indicators) unavailable.\n\n`;
+    }
+  } else {
+    // Full message format with all data
+    message += `💰 Current SPY Price: $${currentPrice.toFixed(2)}\n\n`;
 
-  message += `*Conditions:*\n`;
-  message += `• Condition A (Price < SMA): ${signal.conditionA ? '✅' : '❌'}\n`;
-  message += `• Condition B (Price near BB Lower): ${signal.conditionB ? '✅' : '❌'}\n`;
-  message += `• Condition C (Fear/Extreme Fear): ${signal.conditionC ? '✅' : '❌'}\n\n`;
+    message += `*Technical Indicators:*\n`;
+    message += `• SMA 20: $${indicators.sma20.toFixed(2)}\n`;
+    message += `• SMA 50: $${indicators.sma50.toFixed(2)}\n`;
+    message += `• SMA 100: $${indicators.sma100.toFixed(2)}\n`;
+    message += `• SMA 200: $${indicators.sma200.toFixed(2)}\n`;
+    message += `• BB Upper: $${indicators.bollingerUpper.toFixed(2)}\n`;
+    message += `• BB Middle: $${indicators.bollingerMiddle.toFixed(2)}\n`;
+    message += `• BB Lower: $${indicators.bollingerLower.toFixed(2)}\n\n`;
 
-  message += `*Fear & Greed Index:* ${fearGreedData.rating} (${fearGreedData.score.toFixed(2)}%)\n\n`;
+    message += `*Conditions:*\n`;
+    message += `• Condition A (Price < SMA): ${signal.conditionA ? '✅' : '❌'}\n`;
+    message += `• Condition B (Price near BB Lower): ${signal.conditionB ? '✅' : '❌'}\n`;
+    message += `• Condition C (Fear/Extreme Fear): ${signal.conditionC ? '✅' : '❌'}\n\n`;
 
-  if (entryPrice) {
-    message += `📈 Entry Price: $${entryPrice.toFixed(2)}\n`;
-  }
+    if (fearGreedData) {
+      message += `*Fear & Greed Index:* ${fearGreedData.rating} (${fearGreedData.score.toFixed(2)}%)\n\n`;
+    }
 
-  if (sellTarget) {
-    message += `🎯 Sell Target: $${sellTarget.toFixed(2)}\n`;
-  }
+    if (entryPrice) {
+      message += `📈 Entry Price: $${entryPrice.toFixed(2)}\n`;
+    }
 
-  if (signal.lastTradeDate) {
-    const daysSince = Math.floor((Date.now() - signal.lastTradeDate) / (1000 * 60 * 60 * 24));
-    message += `\n⏰ Last Trade: ${daysSince} days ago\n`;
+    if (sellTarget) {
+      message += `🎯 Sell Target: $${sellTarget.toFixed(2)}\n`;
+    }
+
+    if (signal.lastTradeDate) {
+      const daysSince = Math.floor((Date.now() - signal.lastTradeDate) / (1000 * 60 * 60 * 24));
+      message += `\n⏰ Last Trade: ${daysSince} days ago\n`;
+    }
   }
 
   message += `\n*Reasoning:* ${reasoning}`;

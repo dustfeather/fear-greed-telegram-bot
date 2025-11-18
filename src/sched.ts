@@ -7,7 +7,7 @@ import { getCachedFearGreedIndex, cacheFearGreedIndex } from './utils/cache.js';
 import { getChatIds } from './utils/kv.js';
 import { toAppError, createApiError } from './utils/errors.js';
 import { isValidFearGreedIndexResponse } from './utils/validation.js';
-import { evaluateTradingSignal, formatTradingSignalMessage } from './trading-signal.js';
+import { evaluateTradingSignal, formatTradingSignalMessage, createDataUnavailableSignal } from './trading-signal.js';
 
 /**
  * Fetch Fear & Greed Index from API
@@ -75,18 +75,18 @@ export async function handleScheduled(chatId: number | string | null = null, env
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
     
-    // Evaluate trading signal only if all data sources are successfully accessed
-    // This requires both CNN (Fear & Greed Index) and Yahoo Finance (price data) to be available
-    let tradingSignalMessage = '';
+    // Always evaluate trading signal - if data sources fail, create HOLD signal with explanation
+    let tradingSignal;
     try {
-      const tradingSignal = await evaluateTradingSignal(env, data);
-      tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data);
+      tradingSignal = await evaluateTradingSignal(env, data);
     } catch (error) {
       console.error('Error evaluating trading signal (data sources may be unavailable):', error);
-      // Do not send trading signal if any data source failed
-      // Only send Fear & Greed Index message if trading signal evaluation fails
-      tradingSignalMessage = '';
+      // Create HOLD signal with data unavailability reasoning
+      tradingSignal = createDataUnavailableSignal(data);
     }
+    
+    // Always format the trading signal message
+    const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data);
     
     // Determine if we need to send message
     const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) && !chatId;
@@ -101,10 +101,8 @@ export async function handleScheduled(chatId: number | string | null = null, env
       const ratingText = rating.toUpperCase();
       let messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
       
-      // Append trading signal if available
-      if (tradingSignalMessage) {
-        messageTemplate += `\n\n${tradingSignalMessage}`;
-      }
+      // Always append trading signal
+      messageTemplate += `\n\n${tradingSignalMessage}`;
       
       // Send messages based on conditions
       if (shouldSendToAll) {
@@ -118,21 +116,28 @@ export async function handleScheduled(chatId: number | string | null = null, env
       }
     } else if (chatId) {
       // If specific chat requested but conditions not met, still send trading signal
-      // Only send if trading signal was successfully generated (all data sources available)
-      if (tradingSignalMessage) {
-        await sendTelegramMessage(chatId, tradingSignalMessage, env);
-      } else {
-        // If trading signal failed (data sources unavailable), send Fear & Greed Index only
-        const chartUrlPromise = generatePieChart(score);
-        const ratingText = rating.toUpperCase();
-        const messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
-        await sendTelegramMessage(chatId, messageTemplate, env);
-      }
+      // Always send trading signal (even if it's HOLD with data unavailability)
+      await sendTelegramMessage(chatId, tradingSignalMessage, env);
     }
   } catch (error) {
     const appError = toAppError(error);
     const errorMessage = `An error occurred: ${appError.message}`;
     console.error(errorMessage, appError);
+    
+    // Even if Fear & Greed Index fetch fails, try to send a HOLD signal with data unavailability
+    // This ensures users always receive a signal with reasoning
+    try {
+      const dataUnavailableSignal = createDataUnavailableSignal();
+      const tradingSignalMessage = formatTradingSignalMessage(dataUnavailableSignal);
+      
+      // If we have a specific chatId, send the signal
+      if (chatId) {
+        await sendTelegramMessage(chatId, tradingSignalMessage, env);
+      }
+      // Note: We don't broadcast to all subscribers on error to avoid spam
+    } catch (signalError) {
+      console.error('Failed to send data unavailable signal:', signalError);
+    }
     
     // Notify admin if configured
     const adminChatId = env.ADMIN_CHAT_ID;

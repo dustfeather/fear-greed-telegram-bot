@@ -2,3 +2,5 @@
 alwaysApply: true
 ---
 - update changelog
+- changelog should not have separate entries for the same date
+- always use UTC time for the date in the changelog

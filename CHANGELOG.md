@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## 2025-01-27
+## 2025-11-18
 
 ### Added
 - Trading signal feature that evaluates buy/sell signals based on technical indicators and Fear & Greed Index
@@ -29,6 +29,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Updated scheduled task handler to include trading signal information in messages
 - Extended type definitions to support trading data structures
 - Added trading-related constants and configuration
+- Trading signals are now always sent to users, even when data sources are unavailable
+- When market data or Fear & Greed Index data is unavailable, a HOLD signal is sent with reasoning explaining the data unavailability
+- Signal messages now always include a trading signal (BUY/SELL/HOLD) with clear reasoning, ensuring users always receive actionable information
+- Improved error handling to gracefully handle data source failures while still providing users with signal information
 
 ### Technical Details
 - New modules:
@@ -39,4 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - New test files:
   - `tests/indicators.test.js`: Unit tests for indicator calculations
   - `tests/trading-signal.test.js`: Integration tests for signal evaluation
+- Added `createDataUnavailableSignal()` function in `src/trading-signal.ts` to generate HOLD signals when data sources fail
+- Modified `handleScheduled()` to always generate and send a signal, using fallback HOLD signal when evaluation fails
+- Updated `formatTradingSignalMessage()` to handle data unavailable scenarios with simplified message format
+- Enhanced test coverage for data unavailability scenarios
 
