@@ -5,7 +5,9 @@
 // KV Storage Keys
 export const KV_KEYS = {
   CHAT_IDS: 'chat_ids',
-  FEAR_GREED_CACHE: 'fear_greed_cache'
+  FEAR_GREED_CACHE: 'fear_greed_cache',
+  LAST_TRADE: 'last_trade',
+  ACTIVE_POSITION: 'active_position'
 } as const;
 
 // Fear & Greed Index Rating Values
@@ -21,7 +23,8 @@ export const RATINGS = {
 export const API_URLS = {
   FEAR_GREED_INDEX: 'https://production.dataviz.cnn.io/index/fearandgreed/current',
   TELEGRAM_BASE: 'https://api.telegram.org',
-  QUICKCHART_BASE: 'https://quickchart.io'
+  QUICKCHART_BASE: 'https://quickchart.io',
+  YAHOO_FINANCE: 'https://query1.finance.yahoo.com/v8/finance/chart/SPY'
 } as const;
 
 // Telegram Commands
@@ -96,5 +99,16 @@ export const CHART_CONFIG = {
   HEIGHT: 250,
   GAUGE_SEGMENTS: [25, 45, 55, 75, 100],
   GAUGE_COLORS: ['#f06c00ff', '#ffb9a180', '#e6e6e6', '#b9ede9', '#8cd6c3']
+} as const;
+
+// Trading Configuration
+export const TRADING_CONFIG = {
+  SYMBOL: 'SPY',
+  SMA_PERIODS: [20, 50, 100, 200] as const,
+  BOLLINGER_PERIOD: 20,
+  BOLLINGER_STDDEV: 2,
+  BB_LOWER_THRESHOLD: 0.01, // 1% above lower band
+  TRADING_FREQUENCY_DAYS: 30, // Maximum 1 trade per 30 days
+  HISTORICAL_DAYS_NEEDED: 200 // Need 200 days for SMA 200
 } as const;
 

@@ -7,6 +7,7 @@ import { getCachedFearGreedIndex, cacheFearGreedIndex } from './utils/cache.js';
 import { getChatIds } from './utils/kv.js';
 import { toAppError, createApiError } from './utils/errors.js';
 import { isValidFearGreedIndexResponse } from './utils/validation.js';
+import { evaluateTradingSignal, formatTradingSignalMessage } from './trading-signal.js';
 
 /**
  * Fetch Fear & Greed Index from API
@@ -74,6 +75,16 @@ export async function handleScheduled(chatId: number | string | null = null, env
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
     
+    // Evaluate trading signal
+    let tradingSignalMessage = '';
+    try {
+      const tradingSignal = await evaluateTradingSignal(env, data);
+      tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data);
+    } catch (error) {
+      console.error('Error evaluating trading signal:', error);
+      // Continue with Fear & Greed Index message even if trading signal fails
+    }
+    
     // Determine if we need to send message
     const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) && !chatId;
     const shouldSendToSpecific = !!chatId;
@@ -85,7 +96,12 @@ export async function handleScheduled(chatId: number | string | null = null, env
       
       // Build message template (can be done in parallel with chart generation)
       const ratingText = rating.toUpperCase();
-      const messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
+      let messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
+      
+      // Append trading signal if available
+      if (tradingSignalMessage) {
+        messageTemplate += `\n\n${tradingSignalMessage}`;
+      }
       
       // Send messages based on conditions
       if (shouldSendToAll) {
@@ -96,6 +112,11 @@ export async function handleScheduled(chatId: number | string | null = null, env
       } else if (shouldSendToSpecific) {
         // Send message to a specific subscriber
         await sendTelegramMessage(chatId, messageTemplate, env);
+      }
+    } else if (chatId) {
+      // If specific chat requested but conditions not met, still send trading signal
+      if (tradingSignalMessage) {
+        await sendTelegramMessage(chatId, tradingSignalMessage, env);
       }
     }
   } catch (error) {

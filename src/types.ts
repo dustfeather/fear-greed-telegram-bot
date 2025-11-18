@@ -96,3 +96,67 @@ export interface FearGreedIndexResponse {
   previous_1_year?: number;
 }
 
+/**
+ * Price data point
+ */
+export interface PriceData {
+  date: number; // Unix timestamp
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+/**
+ * Market data response from Yahoo Finance
+ */
+export interface MarketDataResponse {
+  currentPrice: number;
+  historicalData: PriceData[];
+}
+
+/**
+ * Technical indicators
+ */
+export interface TechnicalIndicators {
+  sma20: number;
+  sma50: number;
+  sma100: number;
+  sma200: number;
+  bollingerUpper: number;
+  bollingerMiddle: number; // Same as SMA 20
+  bollingerLower: number;
+}
+
+/**
+ * Trading signal type
+ */
+export type TradingSignalType = 'BUY' | 'SELL' | 'HOLD';
+
+/**
+ * Trading signal evaluation result
+ */
+export interface TradingSignal {
+  signal: TradingSignalType;
+  currentPrice: number;
+  indicators: TechnicalIndicators;
+  conditionA: boolean; // Price below any SMA
+  conditionB: boolean; // Price near BB lower (within 1%)
+  conditionC: boolean; // Fear & Greed Index is fear/extreme fear
+  canTrade: boolean; // Whether trading is allowed (frequency limit check)
+  lastTradeDate?: number; // Timestamp of last trade
+  entryPrice?: number; // Entry price if there's an active position
+  sellTarget?: number; // Fibonacci extension target for SELL
+  reasoning: string; // Human-readable explanation
+}
+
+/**
+ * Trade record stored in KV
+ */
+export interface TradeRecord {
+  entryPrice: number;
+  entryDate: number; // Unix timestamp
+  signalType: 'BUY';
+}
+
