@@ -156,7 +156,7 @@ test_scheduled() {
     
     print_test "$test_name"
     
-    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL/__scheduled?cron=0+9-23+*+*+1-5") || {
+    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL/__scheduled?cron=0+9+*+*+1-5") || {
         print_failure "Failed to connect to $WORKER_URL"
         return 1
     }

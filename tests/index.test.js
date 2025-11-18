@@ -806,7 +806,7 @@ runner.test('Scheduled handler executes on weekday', async () => {
   
   try {
     const controller = {
-      cron: '0 9-23 * * 1-5',
+      cron: '0 9 * * 1-5',
       scheduledTime: Date.now(),
       type: 'scheduled'
     };
@@ -881,7 +881,7 @@ runner.test('Scheduled handler skips on weekend', async () => {
   
   try {
     const controller = {
-      cron: '0 9-23 * * 1-5',
+      cron: '0 9 * * 1-5',
       scheduledTime: Date.now(),
       type: 'scheduled'
     };

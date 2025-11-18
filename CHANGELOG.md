@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - TradingView chart links in signal messages
 
 ### Changed
-- Scheduled task cron schedule: runs hourly, Monday-Friday, 09:00-01:00 UTC (next day)
+- Scheduled task cron schedule: runs at specific times, Monday-Friday: 09:00, 14:30, 21:00, and 01:00 UTC (next day)
 - `/now` command: now includes trading signal evaluation and display
 - Trading signals: always sent to users (HOLD signal when data unavailable)
 - Execution tracking: signals are recommendations only; execution tracked separately per user
@@ -38,4 +38,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Bumped `@cloudflare/workers-types` from `^4.20251014.0` to `^4.20251117.0`
 - Bumped `wrangler` from `^4.45.3` to `^4.48.0`
 - Bumped `@types/node` from `^24.9.2` to `^24.10.1`
-

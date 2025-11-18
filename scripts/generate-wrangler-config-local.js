@@ -70,8 +70,10 @@ const config = {
   ],
   triggers: {
     crons: [
-      '0 9-23 * * 1-5',  // Weekdays (Mon-Fri) 09:00-23:00
-      '0 0-1 * * 2-6'    // Late night coverage (Tue-Sat) 00:00-01:00 (covers weekday late nights)
+      '0 9 * * 1-5',     // 09:00 weekdays (Mon-Fri)
+      '30 14 * * 1-5',   // 14:30 weekdays (Mon-Fri)
+      '0 21 * * 1-5',    // 21:00 weekdays (Mon-Fri)
+      '0 1 * * 2-6'      // 01:00 (next day) - Tue-Sat to cover weekday late nights
     ]
   },
   kv_namespaces: [

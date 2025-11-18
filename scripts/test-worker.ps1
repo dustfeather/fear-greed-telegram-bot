@@ -203,7 +203,7 @@ function Test-Scheduled {
     
     Print-Test $TestName
     
-    $scheduledUrl = "$WorkerUrl/__scheduled?cron=0+9-23+*+*+1-5"
+    $scheduledUrl = "$WorkerUrl/__scheduled?cron=0+9+*+*+1-5"
     
     try {
         $response = Invoke-WebRequest -Uri $scheduledUrl -Method GET -UseBasicParsing -ErrorAction Stop
