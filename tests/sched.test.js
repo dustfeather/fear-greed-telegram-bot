@@ -278,14 +278,18 @@ runner.test('Verify message format includes chart URL', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   
-  let capturedMessage = null;
+  // Initialize watchlist for test user (defaults to SPY)
+  const { getWatchlist } = await import('../src/utils/watchlist.js');
+  await getWatchlist(env.FEAR_GREED_KV, chatId);
+  
+  const capturedMessages = [];
   const mockFetch = createMockFetch({
     'production.dataviz.cnn.io': () => ({
       ok: true,
       status: 200,
       json: async () => ({
-        rating: 'Neutral',
-        score: 50.0,
+        rating: 'Fear',
+        score: 25.0,
         timestamp: new Date().toISOString()
       })
     }),
@@ -301,7 +305,7 @@ runner.test('Verify message format includes chart URL', async () => {
     }),
     'api.telegram.org': (options) => {
       const body = JSON.parse(options.body);
-      capturedMessage = body.text;
+      capturedMessages.push(body.text);
       return {
         ok: true,
         status: 200,
@@ -314,19 +318,22 @@ runner.test('Verify message format includes chart URL', async () => {
   
   await handleScheduled(chatId, env);
   
-  // Securely verify chart URL by parsing and checking hostname exactly
-  // Extract URL from Markdown format: [text](URL)
-  const urlMatch = capturedMessage.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
-  assert(urlMatch, 'Message should contain a URL in Markdown format');
-  const chartUrl = urlMatch[1];
-  const urlObj = new URL(chartUrl);
-  // Verify hostname exactly matches (prevents substring vulnerabilities)
-  assert.equal(urlObj.hostname, 'quickchart.io', 'Chart URL hostname should be quickchart.io');
+  // With watchlist, multiple messages may be sent (one per ticker)
+  // Verify at least one message contains the chart URL
+  assert(capturedMessages.length > 0, 'At least one message should be sent');
   
-  assert(capturedMessage.includes('50.00%'), 'Message should include score');
-  assert(capturedMessage.includes('NEUTRAL'), 'Message should include rating');
+  const messageWithChart = capturedMessages.find(msg => {
+    const urlMatch = msg.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
+    return urlMatch && new URL(urlMatch[1]).hostname === 'quickchart.io';
+  });
+  
+  assert(messageWithChart, 'At least one message should contain a chart URL from quickchart.io');
+  
+  // Verify message content
+  assert(messageWithChart.includes('25.00%'), 'Message should include score');
+  assert(messageWithChart.includes('FEAR'), 'Message should include rating');
   // Verify that trading signal is always included
-  assert(capturedMessage.includes('Trading Signal'), 'Message should always include trading signal');
+  assert(messageWithChart.includes('Trading Signal'), 'Message should always include trading signal');
 });
 
 // Test 7: Verify signal is always sent when market data fails

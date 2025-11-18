@@ -28,6 +28,15 @@ export function activePositionKey(chatId: number | string): string {
   return `active_position:${chatId}`;
 }
 
+/**
+ * Generate user-specific KV key for watchlist
+ * @param chatId - User's chat ID
+ * @returns KV key string
+ */
+export function watchlistKey(chatId: number | string): string {
+  return `watchlist:${chatId}`;
+}
+
 // Fear & Greed Index Rating Values
 export const RATINGS = {
   FEAR: 'fear',
@@ -52,7 +61,8 @@ export const COMMANDS = {
   HELP: '/help',
   NOW: '/now',
   EXECUTE: '/execute',
-  EXECUTIONS: '/executions'
+  EXECUTIONS: '/executions',
+  WATCHLIST: '/watchlist'
 } as const;
 
 // Message Templates
@@ -63,8 +73,11 @@ export const MESSAGES = {
 Available commands:
 /start - Subscribe to Fear and Greed Index alerts.
 /stop - Unsubscribe from Fear and Greed Index alerts.
-/now - Get the current Fear and Greed Index rating and trading signal (default: SPY).
+/now - Get trading signals for all tickers in your watchlist.
 /now TICKER - Get trading signal for a specific ticker (e.g., /now AAPL).
+/watchlist - View your watchlist.
+/watchlist add TICKER - Add ticker to your watchlist (e.g., /watchlist add AAPL).
+/watchlist remove TICKER - Remove ticker from your watchlist (e.g., /watchlist remove SPY).
 /execute TICKER PRICE [DATE] - Record execution of a signal at a specific price (e.g., /execute SPY 400.50). Optionally specify date as YYYY-MM-DD (e.g., /execute SPY 400.50 2024-01-15).
 /executions - View your execution history.
 /executions TICKER - View execution history for a specific ticker (e.g., /executions SPY).

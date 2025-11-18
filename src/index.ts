@@ -8,6 +8,7 @@ import { successResponse, errorResponse, unauthorizedResponse, badRequestRespons
 import { isValidTicker } from './utils/validation.js';
 import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './utils/executions.js';
 import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './utils/trades.js';
+import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './utils/watchlist.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -133,9 +134,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         return successResponse();
       } else if (text.startsWith(COMMANDS.NOW)) {
         // Parse optional ticker parameter
-        let ticker: string = TRADING_CONFIG.SYMBOL; // Default to SPY
-        
         const parts = text.trim().split(/\s+/);
+        let ticker: string | undefined;
+        
         if (parts.length > 1) {
           const tickerInput = parts[1];
           const validation = isValidTicker(tickerInput);
@@ -152,6 +153,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           ticker = validation.ticker;
         }
         
+        // If no ticker specified, use watchlist (handleScheduled will handle it)
+        // If ticker specified, use that ticker only (backward compatible)
         await handleScheduled(chatId, env, ticker);
         return successResponse();
       } else if (text.startsWith(COMMANDS.EXECUTE)) {
@@ -269,6 +272,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           // Update active position
           if (signalType === 'BUY') {
             await setActivePosition(env.FEAR_GREED_KV, chatId, ticker, executionPrice);
+            // Automatically add ticker to watchlist when opening position
+            await ensureTickerInWatchlist(env.FEAR_GREED_KV, chatId, ticker);
           } else if (signalType === 'SELL') {
             // SELL execution closes ALL open positions for this ticker
             await clearActivePosition(env.FEAR_GREED_KV, chatId);
@@ -338,6 +343,61 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           await sendTelegramMessage(
             chatId,
             '❌ Failed to retrieve execution history. Please try again.',
+            env
+          );
+        }
+        
+        return successResponse();
+      } else if (text.startsWith(COMMANDS.WATCHLIST)) {
+        // Parse /watchlist command
+        const parts = text.trim().split(/\s+/);
+        
+        if (parts.length === 1) {
+          // /watchlist - Show current watchlist
+          try {
+            const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+            const watchlistText = watchlist.length > 0
+              ? watchlist.map(t => `• $${t}`).join('\n')
+              : '• $SPY (default)';
+            
+            await sendTelegramMessage(
+              chatId,
+              `*Your Watchlist:*\n\n${watchlistText}\n\nUse /watchlist add TICKER to add a ticker.\nUse /watchlist remove TICKER to remove a ticker.`,
+              env
+            );
+          } catch (error) {
+            console.error('Error retrieving watchlist:', error);
+            await sendTelegramMessage(
+              chatId,
+              '❌ Failed to retrieve watchlist. Please try again.',
+              env
+            );
+          }
+        } else if (parts.length === 3 && parts[1].toLowerCase() === 'add') {
+          // /watchlist add TICKER
+          const tickerInput = parts[2];
+          const result = await addTickerToWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
+          
+          if (result.success) {
+            await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
+          } else {
+            await sendTelegramMessage(chatId, `❌ ${result.message}`, env);
+          }
+        } else if (parts.length === 3 && parts[1].toLowerCase() === 'remove') {
+          // /watchlist remove TICKER
+          const tickerInput = parts[2];
+          const result = await removeTickerFromWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
+          
+          if (result.success) {
+            await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
+          } else {
+            await sendTelegramMessage(chatId, `❌ ${result.message}`, env);
+          }
+        } else {
+          // Invalid format
+          await sendTelegramMessage(
+            chatId,
+            '❌ Invalid format. Use:\n/watchlist - View your watchlist\n/watchlist add TICKER - Add ticker to watchlist\n/watchlist remove TICKER - Remove ticker from watchlist',
             env
           );
         }

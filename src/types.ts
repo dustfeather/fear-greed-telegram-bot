@@ -180,3 +180,8 @@ export interface ActivePosition {
   entryPrice: number;
 }
 
+/**
+ * Watchlist - array of ticker symbols
+ */
+export type Watchlist = string[];
+

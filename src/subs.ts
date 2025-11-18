@@ -1,5 +1,6 @@
 import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from './types.js';
 import { getChatIds, addChatId, removeChatId } from './utils/kv.js';
+import { getWatchlist } from './utils/watchlist.js';
 import { getErrorMessage } from './utils/errors.js';
 
 /**
@@ -21,6 +22,19 @@ export function sanitizeSubscriptionResult(result: SubscriptionResult): Sanitize
 export async function sub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
     const wasAlreadySubscribed = !(await addChatId(env.FEAR_GREED_KV, chatId));
+    
+    // Initialize watchlist with SPY if user doesn't have one
+    // This ensures new subscribers start with SPY
+    if (!wasAlreadySubscribed) {
+      try {
+        await getWatchlist(env.FEAR_GREED_KV, chatId);
+        // If getWatchlist succeeds, watchlist already exists (or was created with default)
+      } catch (error) {
+        // If there's an error, the watchlist will be initialized on first access
+        console.error('Error initializing watchlist for new subscriber:', error);
+      }
+    }
+    
     const chatIds = await getChatIds(env.FEAR_GREED_KV);
     
     return {

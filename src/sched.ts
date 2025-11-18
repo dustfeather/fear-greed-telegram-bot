@@ -5,6 +5,7 @@ import { API_URLS, HTTP_HEADERS, RATINGS } from './constants.js';
 import { enhancedFetch } from './utils/fetch.js';
 import { getCachedFearGreedIndex, cacheFearGreedIndex } from './utils/cache.js';
 import { getChatIds } from './utils/kv.js';
+import { getWatchlist, initializeWatchlistIfMissing } from './utils/watchlist.js';
 import { toAppError, createApiError } from './utils/errors.js';
 import { isValidFearGreedIndexResponse } from './utils/validation.js';
 import { evaluateTradingSignal, formatTradingSignalMessage, createDataUnavailableSignal } from './trading-signal.js';
@@ -56,10 +57,10 @@ async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
  * Handle scheduled event.
  * @param chatId - Optional specific chat ID to send to, or null to send to all subscribers
  * @param env - Environment variables
- * @param ticker - Ticker symbol (default: 'SPY')
+ * @param ticker - Ticker symbol (optional, used only for backward compatibility with /now command)
  * @returns Promise resolving to void
  */
-export async function handleScheduled(chatId: number | string | null = null, env: Env, ticker: string = 'SPY'): Promise<void> {
+export async function handleScheduled(chatId: number | string | null = null, env: Env, ticker?: string): Promise<void> {
   try {
     // Try to get cached data first
     let data = await getCachedFearGreedIndex(env.FEAR_GREED_KV);
@@ -76,57 +77,93 @@ export async function handleScheduled(chatId: number | string | null = null, env
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
     
-    // Always evaluate trading signal - if data sources fail, create HOLD signal with explanation
-    // Pass chatId to evaluateTradingSignal for user-specific position checking
-    let tradingSignal;
-    try {
-      tradingSignal = await evaluateTradingSignal(env, data, ticker, chatId || undefined);
-    } catch (error) {
-      // Log detailed error information for debugging
-      const errorDetails = error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      } : String(error);
-      console.error('Error evaluating trading signal (data sources may be unavailable):', JSON.stringify(errorDetails, null, 2));
-      console.error('Full error object:', error);
-      // Create HOLD signal with data unavailability reasoning
-      tradingSignal = createDataUnavailableSignal(data, ticker);
-    }
+    // Generate chart URL once (used for all messages)
+    const chartUrl = await generatePieChart(score);
+    const ratingText = rating.toUpperCase();
+    const fearGreedMessage = `⚠️ The current [Fear and Greed Index](${chartUrl}) rating is ${score}% (*${ratingText}*).`;
     
-    // Always format the trading signal message
-    const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data, ticker);
-    
-    // Determine if we need to send message
-    const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) && !chatId;
-    const shouldSendToSpecific = !!chatId;
-    
-    // Only generate chart if we're actually going to send a message
-    if (shouldSendToAll || shouldSendToSpecific) {
-      // Generate chart and build message in parallel
-      const chartUrlPromise = generatePieChart(score);
+    if (chatId) {
+      // Specific user request - get their watchlist
+      const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+      const tickersToProcess = ticker ? [ticker] : watchlist;
       
-      // Build message template (can be done in parallel with chart generation)
-      const ratingText = rating.toUpperCase();
-      let messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
-      
-      // Always append trading signal
-      messageTemplate += `\n\n${tradingSignalMessage}`;
-      
-      // Send messages based on conditions
-      if (shouldSendToAll) {
-        // Retrieve chat IDs from KV storage
-        const chatIds = await getChatIds(env.FEAR_GREED_KV);
-        // Send message to all subscribers (using rate-limited broadcast would be better, but keeping simple for now)
-        await Promise.all(chatIds.map(id => sendTelegramMessage(id, messageTemplate, env)));
-      } else if (shouldSendToSpecific) {
-        // Send message to a specific subscriber
-        await sendTelegramMessage(chatId, messageTemplate, env);
+      // Send one message per ticker
+      for (const tickerSymbol of tickersToProcess) {
+        let tradingSignal;
+        try {
+          tradingSignal = await evaluateTradingSignal(env, data, tickerSymbol, chatId);
+        } catch (error) {
+          const errorDetails = error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          } : String(error);
+          console.error(`Error evaluating trading signal for ${tickerSymbol}:`, JSON.stringify(errorDetails, null, 2));
+          tradingSignal = createDataUnavailableSignal(data, tickerSymbol);
+        }
+        
+        const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data, tickerSymbol);
+        
+        // Determine if we should include Fear & Greed Index message
+        const shouldIncludeFearGreed = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) || ticker !== undefined;
+        
+        if (shouldIncludeFearGreed) {
+          const fullMessage = `${fearGreedMessage}\n\n${tradingSignalMessage}`;
+          await sendTelegramMessage(chatId, fullMessage, env);
+        } else {
+          // Just send trading signal
+          await sendTelegramMessage(chatId, tradingSignalMessage, env);
+        }
       }
-    } else if (chatId) {
-      // If specific chat requested but conditions not met, still send trading signal
-      // Always send trading signal (even if it's HOLD with data unavailability)
-      await sendTelegramMessage(chatId, tradingSignalMessage, env);
+    } else {
+      // Broadcast to all subscribers - iterate through each user's watchlist
+      const chatIds = await getChatIds(env.FEAR_GREED_KV);
+      const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR);
+      
+      // Initialize watchlists for all existing users who don't have one
+      // This happens on the first scheduled job run
+      for (const userId of chatIds) {
+        try {
+          await initializeWatchlistIfMissing(env.FEAR_GREED_KV, userId);
+        } catch (error) {
+          console.error(`Error initializing watchlist for user ${userId}:`, error);
+          // Continue with next user
+        }
+      }
+      
+      // Process each user's watchlist
+      for (const userId of chatIds) {
+        try {
+          const watchlist = await getWatchlist(env.FEAR_GREED_KV, userId);
+          
+          // Send one message per ticker in watchlist
+          for (const tickerSymbol of watchlist) {
+            let tradingSignal;
+            try {
+              tradingSignal = await evaluateTradingSignal(env, data, tickerSymbol, userId);
+            } catch (error) {
+              const errorDetails = error instanceof Error ? {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+              } : String(error);
+              console.error(`Error evaluating trading signal for ${tickerSymbol} (user ${userId}):`, JSON.stringify(errorDetails, null, 2));
+              tradingSignal = createDataUnavailableSignal(data, tickerSymbol);
+            }
+            
+            const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data, tickerSymbol);
+            
+            if (shouldSendToAll) {
+              const fullMessage = `${fearGreedMessage}\n\n${tradingSignalMessage}`;
+              await sendTelegramMessage(userId, fullMessage, env);
+            }
+            // Note: We only send during fear/extreme fear for broadcasts
+          }
+        } catch (userError) {
+          console.error(`Error processing watchlist for user ${userId}:`, userError);
+          // Continue with next user
+        }
+      }
     }
   } catch (error) {
     const appError = toAppError(error);
@@ -135,18 +172,21 @@ export async function handleScheduled(chatId: number | string | null = null, env
     
     // Even if Fear & Greed Index fetch fails, try to send a HOLD signal with data unavailability
     // This ensures users always receive a signal with reasoning
-    try {
-      const dataUnavailableSignal = createDataUnavailableSignal(undefined, ticker);
-      const tradingSignalMessage = formatTradingSignalMessage(dataUnavailableSignal, undefined, ticker);
-      
-      // If we have a specific chatId, send the signal
-      if (chatId) {
-        await sendTelegramMessage(chatId, tradingSignalMessage, env);
+    if (chatId) {
+      try {
+        const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+        const tickersToProcess = ticker ? [ticker] : watchlist;
+        
+        for (const tickerSymbol of tickersToProcess) {
+          const dataUnavailableSignal = createDataUnavailableSignal(undefined, tickerSymbol);
+          const tradingSignalMessage = formatTradingSignalMessage(dataUnavailableSignal, undefined, tickerSymbol);
+          await sendTelegramMessage(chatId, tradingSignalMessage, env);
+        }
+      } catch (signalError) {
+        console.error('Failed to send data unavailable signal:', signalError);
       }
-      // Note: We don't broadcast to all subscribers on error to avoid spam
-    } catch (signalError) {
-      console.error('Failed to send data unavailable signal:', signalError);
     }
+    // Note: We don't broadcast to all subscribers on error to avoid spam
     
     // Notify admin if configured
     const adminChatId = env.ADMIN_CHAT_ID;
