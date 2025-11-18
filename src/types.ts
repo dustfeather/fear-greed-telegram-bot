@@ -144,19 +144,36 @@ export interface TradingSignal {
   conditionA: boolean; // Price below any SMA
   conditionB: boolean; // Price near BB lower (within 1%)
   conditionC: boolean; // Fear & Greed Index is fear/extreme fear
-  canTrade: boolean; // Whether trading is allowed (frequency limit check)
-  lastTradeDate?: number; // Timestamp of last trade
   entryPrice?: number; // Entry price if there's an active position
   sellTarget?: number; // All-time high target for SELL
   reasoning: string; // Human-readable explanation
 }
 
 /**
- * Trade record stored in KV
+ * Trade record stored in KV (deprecated - use SignalExecution instead)
  */
 export interface TradeRecord {
   entryPrice: number;
   entryDate: number; // Unix timestamp
   signalType: 'BUY';
+}
+
+/**
+ * Signal execution record - tracks when a user executed a signal
+ */
+export interface SignalExecution {
+  signalType: 'BUY' | 'SELL';
+  ticker: string;
+  executionPrice: number;
+  executionDate: number; // Unix timestamp
+  signalPrice?: number; // Price when signal was generated (optional)
+}
+
+/**
+ * Active position for a user
+ */
+export interface ActivePosition {
+  ticker: string;
+  entryPrice: number;
 }
 

@@ -6,6 +6,8 @@ import type { Env, TelegramUpdate } from './types.js';
 import { COMMANDS, MESSAGES, TRADING_CONFIG } from './constants.js';
 import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './utils/response.js';
 import { isValidTicker } from './utils/validation.js';
+import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './utils/executions.js';
+import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './utils/trades.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -151,6 +153,190 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
         
         await handleScheduled(chatId, env, ticker);
+        return successResponse();
+      } else if (text.startsWith(COMMANDS.EXECUTE)) {
+        // Parse /execute TICKER PRICE [DATE] command
+        const parts = text.trim().split(/\s+/);
+        if (parts.length < 3) {
+          await sendTelegramMessage(
+            chatId,
+            '❌ Invalid format. Use: /execute TICKER PRICE [DATE]\nExample: /execute SPY 400.50\nExample: /execute SPY 400.50 2024-01-15',
+            env
+          );
+          return successResponse();
+        }
+        
+        const tickerInput = parts[1];
+        const priceInput = parts[2];
+        const dateInput = parts[3]; // Optional date parameter
+        
+        // Validate ticker
+        const tickerValidation = isValidTicker(tickerInput);
+        if (!tickerValidation.isValid) {
+          await sendTelegramMessage(
+            chatId,
+            `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+            env
+          );
+          return successResponse();
+        }
+        const ticker = tickerValidation.ticker;
+        
+        // Validate price
+        const executionPrice = parseFloat(priceInput);
+        if (isNaN(executionPrice) || executionPrice <= 0) {
+          await sendTelegramMessage(
+            chatId,
+            `❌ Invalid price: "${priceInput}". Please provide a positive number.`,
+            env
+          );
+          return successResponse();
+        }
+        
+        // Parse and validate optional date parameter (YYYY-MM-DD format)
+        let executionDate: number | undefined;
+        if (dateInput) {
+          // Validate date format (YYYY-MM-DD)
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!dateRegex.test(dateInput)) {
+            await sendTelegramMessage(
+              chatId,
+              `❌ Invalid date format: "${dateInput}". Please use YYYY-MM-DD format (e.g., 2024-01-15).`,
+              env
+            );
+            return successResponse();
+          }
+          
+          // Parse the date and convert to timestamp (start of day UTC)
+          const dateParts = dateInput.split('-');
+          const year = parseInt(dateParts[0], 10);
+          const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+          const day = parseInt(dateParts[2], 10);
+          
+          const date = new Date(Date.UTC(year, month, day));
+          
+          // Validate the date is valid (e.g., not Feb 30)
+          if (date.getUTCFullYear() !== year || 
+              date.getUTCMonth() !== month || 
+              date.getUTCDate() !== day) {
+            await sendTelegramMessage(
+              chatId,
+              `❌ Invalid date: "${dateInput}". Please provide a valid date.`,
+              env
+            );
+            return successResponse();
+          }
+          
+          executionDate = date.getTime();
+        }
+        
+        // Check if user can execute (once per calendar month limit)
+        const tradingAllowed = await canTrade(env.FEAR_GREED_KV, chatId);
+        if (!tradingAllowed) {
+          const lastExec = await getLatestExecution(env.FEAR_GREED_KV, chatId);
+          if (lastExec) {
+            const lastExecMonth = getMonthName(lastExec.executionDate);
+            // Calculate next month
+            const now = new Date();
+            const nextMonth = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+            const nextMonthName = getMonthName(nextMonth);
+            await sendTelegramMessage(
+              chatId,
+              `❌ Trading frequency limit: You already executed a signal in ${lastExecMonth}. You can execute again in ${nextMonthName} (once per calendar month).`,
+              env
+            );
+          } else {
+            await sendTelegramMessage(
+              chatId,
+              '❌ Trading frequency limit: You can only execute once per calendar month.',
+              env
+            );
+          }
+          return successResponse();
+        }
+        
+        // Get user's active position for this ticker
+        const activePosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
+        const hasActivePosition = activePosition && activePosition.ticker.toUpperCase() === ticker.toUpperCase();
+        
+        // Determine signal type
+        const signalType = hasActivePosition ? 'SELL' : 'BUY';
+        
+        // Record execution
+        try {
+          await recordExecution(env.FEAR_GREED_KV, chatId, signalType, ticker, executionPrice, undefined, executionDate);
+          
+          // Update active position
+          if (signalType === 'BUY') {
+            await setActivePosition(env.FEAR_GREED_KV, chatId, ticker, executionPrice);
+          } else if (signalType === 'SELL') {
+            await clearActivePosition(env.FEAR_GREED_KV, chatId);
+          }
+          
+          const signalEmoji = signalType === 'BUY' ? '🟢' : '🔴';
+          await sendTelegramMessage(
+            chatId,
+            `${signalEmoji} *Execution Recorded*\n\n*Signal:* ${signalType}\n*Ticker:* ${ticker}\n*Price:* $${executionPrice.toFixed(2)}\n\nExecution has been recorded in your history.`,
+            env
+          );
+        } catch (error) {
+          console.error('Error recording execution:', error);
+          await sendTelegramMessage(
+            chatId,
+            '❌ Failed to record execution. Please try again.',
+            env
+          );
+        }
+        
+        return successResponse();
+      } else if (text.startsWith(COMMANDS.EXECUTIONS)) {
+        // Parse /executions [TICKER] command
+        const parts = text.trim().split(/\s+/);
+        let ticker: string | undefined;
+        
+        if (parts.length > 1) {
+          const tickerInput = parts[1];
+          const validation = isValidTicker(tickerInput);
+          
+          if (!validation.isValid) {
+            await sendTelegramMessage(
+              chatId,
+              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+              env
+            );
+            return successResponse();
+          }
+          
+          ticker = validation.ticker;
+        }
+        
+        // Get execution history
+        try {
+          const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId, ticker);
+          const formatted = formatExecutionHistory(history);
+          
+          if (ticker) {
+            await sendTelegramMessage(
+              chatId,
+              `*Execution History for ${ticker}:*\n\n${formatted}`,
+              env
+            );
+          } else {
+            await sendTelegramMessage(
+              chatId,
+              `*Your Execution History:*\n\n${formatted}`,
+              env
+            );
+          }
+        } catch (error) {
+          console.error('Error retrieving execution history:', error);
+          await sendTelegramMessage(
+            chatId,
+            '❌ Failed to retrieve execution history. Please try again.',
+            env
+          );
+        }
+        
         return successResponse();
       } else {
         // Unknown command - still return OK to Telegram

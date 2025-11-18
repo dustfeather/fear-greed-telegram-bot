@@ -10,6 +10,24 @@ export const KV_KEYS = {
   ACTIVE_POSITION: 'active_position'
 } as const;
 
+/**
+ * Generate user-specific KV key for execution history
+ * @param chatId - User's chat ID
+ * @returns KV key string
+ */
+export function executionHistoryKey(chatId: number | string): string {
+  return `execution_history:${chatId}`;
+}
+
+/**
+ * Generate user-specific KV key for active position
+ * @param chatId - User's chat ID
+ * @returns KV key string
+ */
+export function activePositionKey(chatId: number | string): string {
+  return `active_position:${chatId}`;
+}
+
 // Fear & Greed Index Rating Values
 export const RATINGS = {
   FEAR: 'fear',
@@ -32,7 +50,9 @@ export const COMMANDS = {
   START: '/start',
   STOP: '/stop',
   HELP: '/help',
-  NOW: '/now'
+  NOW: '/now',
+  EXECUTE: '/execute',
+  EXECUTIONS: '/executions'
 } as const;
 
 // Message Templates
@@ -45,6 +65,9 @@ Available commands:
 /stop - Unsubscribe from Fear and Greed Index alerts.
 /now - Get the current Fear and Greed Index rating and trading signal (default: SPY).
 /now TICKER - Get trading signal for a specific ticker (e.g., /now AAPL).
+/execute TICKER PRICE [DATE] - Record execution of a signal at a specific price (e.g., /execute SPY 400.50). Optionally specify date as YYYY-MM-DD (e.g., /execute SPY 400.50 2024-01-15).
+/executions - View your execution history.
+/executions TICKER - View execution history for a specific ticker (e.g., /executions SPY).
 /help - Show this help message.
 `
 } as const;
@@ -109,7 +132,7 @@ export const TRADING_CONFIG = {
   BOLLINGER_PERIOD: 20,
   BOLLINGER_STDDEV: 2,
   BB_LOWER_THRESHOLD: 0.01, // 1% above lower band
-  TRADING_FREQUENCY_DAYS: 30, // Maximum 1 trade per 30 days
+  TRADING_FREQUENCY_DAYS: 30, // Deprecated: now using calendar month restriction
   HISTORICAL_DAYS_NEEDED: 200 // Need 200 days for SMA 200
 } as const;
 

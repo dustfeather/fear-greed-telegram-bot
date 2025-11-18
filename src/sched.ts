@@ -77,9 +77,10 @@ export async function handleScheduled(chatId: number | string | null = null, env
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
     
     // Always evaluate trading signal - if data sources fail, create HOLD signal with explanation
+    // Pass chatId to evaluateTradingSignal for user-specific position checking
     let tradingSignal;
     try {
-      tradingSignal = await evaluateTradingSignal(env, data, ticker);
+      tradingSignal = await evaluateTradingSignal(env, data, ticker, chatId || undefined);
     } catch (error) {
       // Log detailed error information for debugging
       const errorDetails = error instanceof Error ? {

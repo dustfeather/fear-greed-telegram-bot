@@ -332,6 +332,277 @@ runner.test('/now command with invalid ticker', async () => {
   assert(telegramCallCount === 1, 'Should send error message for invalid ticker');
 });
 
+// Test 4d: /execute command
+runner.test('/execute command', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/execute SPY 400.50', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send execution confirmation message');
+  
+  // Verify execution was recorded
+  const historyKey = `execution_history:${chatId}`;
+  const historyString = await env.FEAR_GREED_KV.get(historyKey);
+  assert(historyString !== null, 'Should have execution history');
+  const history = JSON.parse(historyString);
+  assert(history.length === 1, 'Should have one execution');
+  assert(history[0].ticker === 'SPY', 'Should have correct ticker');
+  assert(history[0].executionPrice === 400.50, 'Should have correct price');
+  assert(history[0].signalType === 'BUY', 'Should be BUY (no active position)');
+});
+
+// Test 4e: /execute command with invalid format
+runner.test('/execute command with invalid format', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/execute SPY', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send error message for invalid format');
+});
+
+// Test 4f: /execute command with valid date parameter
+runner.test('/execute command with valid date parameter', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/execute SPY 400.50 2024-01-15', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send execution confirmation message');
+  
+  // Verify execution was recorded with correct date
+  const historyKey = `execution_history:${chatId}`;
+  const historyString = await env.FEAR_GREED_KV.get(historyKey);
+  assert(historyString !== null, 'Should have execution history');
+  const history = JSON.parse(historyString);
+  assert(history.length === 1, 'Should have one execution');
+  assert(history[0].ticker === 'SPY', 'Should have correct ticker');
+  assert(history[0].executionPrice === 400.50, 'Should have correct price');
+  
+  // Verify the date is correct (2024-01-15, start of day UTC)
+  const executionDate = new Date(history[0].executionDate);
+  assert(executionDate.getUTCFullYear() === 2024, 'Should have correct year');
+  assert(executionDate.getUTCMonth() === 0, 'Should have correct month (January = 0)');
+  assert(executionDate.getUTCDate() === 15, 'Should have correct day');
+  assert(executionDate.getUTCHours() === 0, 'Should be start of day (0 hours)');
+  assert(executionDate.getUTCMinutes() === 0, 'Should be start of day (0 minutes)');
+});
+
+// Test 4g: /execute command with invalid date format
+runner.test('/execute command with invalid date format', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/execute SPY 400.50 2024/01/15', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send error message for invalid date format');
+  
+  // Verify execution was NOT recorded
+  const historyKey = `execution_history:${chatId}`;
+  const historyString = await env.FEAR_GREED_KV.get(historyKey);
+  assert(historyString === null, 'Should not have execution history');
+});
+
+// Test 4h: /execute command with invalid date (e.g., Feb 30)
+runner.test('/execute command with invalid date', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/execute SPY 400.50 2024-02-30', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send error message for invalid date');
+  
+  // Verify execution was NOT recorded
+  const historyKey = `execution_history:${chatId}`;
+  const historyString = await env.FEAR_GREED_KV.get(historyKey);
+  assert(historyString === null, 'Should not have execution history');
+});
+
+// Test 4i: /executions command
+runner.test('/executions command', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  
+  // Record some executions first
+  const historyKey = `execution_history:${chatId}`;
+  await env.FEAR_GREED_KV.put(historyKey, JSON.stringify([
+    {
+      signalType: 'BUY',
+      ticker: 'SPY',
+      executionPrice: 400.50,
+      executionDate: Date.now()
+    }
+  ]));
+  
+  const update = createTelegramUpdate('/executions', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send execution history message');
+});
+
 // Test 5: Unknown command
 runner.test('Unknown command', async () => {
   const env = createMockEnv();

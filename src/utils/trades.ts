@@ -3,100 +3,127 @@
  */
 
 import type { KVNamespace } from '@cloudflare/workers-types';
-import type { TradeRecord } from '../types.js';
-import { KV_KEYS, TRADING_CONFIG } from '../constants.js';
+import type { TradeRecord, ActivePosition } from '../types.js';
+import { activePositionKey, TRADING_CONFIG } from '../constants.js';
+import { getLatestExecution } from './executions.js';
 import { createKVError } from './errors.js';
 
 /**
- * Get the last trade record from KV
+ * Get the last trade record from KV (deprecated - use getLatestExecution instead)
  * @param kv - KV namespace
+ * @param chatId - User's chat ID
  * @returns Last trade record or null if none exists
  */
-export async function getLastTrade(kv: KVNamespace): Promise<TradeRecord | null> {
-  try {
-    const tradeString = await kv.get(KV_KEYS.LAST_TRADE);
-    if (!tradeString) {
-      return null;
-    }
-    return JSON.parse(tradeString) as TradeRecord;
-  } catch (error) {
-    throw createKVError('Failed to get last trade', error);
-  }
+export async function getLastTrade(kv: KVNamespace, chatId?: number | string): Promise<TradeRecord | null> {
+  // This function is kept for backward compatibility but is deprecated
+  // New code should use getLatestExecution from executions.ts
+  return null;
 }
 
 /**
- * Get active position (entry price) from KV
+ * Get active position for a user
  * @param kv - KV namespace
- * @returns Entry price or null if no active position
+ * @param chatId - User's chat ID
+ * @returns Active position (ticker and entry price) or null if no active position
  */
-export async function getActivePosition(kv: KVNamespace): Promise<number | null> {
+export async function getActivePosition(kv: KVNamespace, chatId: number | string): Promise<ActivePosition | null> {
   try {
-    const positionString = await kv.get(KV_KEYS.ACTIVE_POSITION);
+    const key = activePositionKey(chatId);
+    const positionString = await kv.get(key);
     if (!positionString) {
       return null;
     }
-    const position = JSON.parse(positionString) as { entryPrice: number };
-    return position.entryPrice;
+    return JSON.parse(positionString) as ActivePosition;
   } catch (error) {
     throw createKVError('Failed to get active position', error);
   }
 }
 
 /**
- * Check if a new trade is allowed (enforce 30-day limit)
+ * Set active position for a user (when BUY is executed)
  * @param kv - KV namespace
- * @returns true if trading is allowed, false otherwise
+ * @param chatId - User's chat ID
+ * @param ticker - Ticker symbol
+ * @param entryPrice - Entry price
+ * @returns Promise resolving to void
  */
-export async function canTrade(kv: KVNamespace): Promise<boolean> {
+export async function setActivePosition(
+  kv: KVNamespace,
+  chatId: number | string,
+  ticker: string,
+  entryPrice: number
+): Promise<void> {
   try {
-    const lastTrade = await getLastTrade(kv);
-    if (!lastTrade) {
-      return true; // No previous trades, trading allowed
+    const key = activePositionKey(chatId);
+    const position: ActivePosition = { ticker, entryPrice };
+    await kv.put(key, JSON.stringify(position));
+  } catch (error) {
+    throw createKVError('Failed to set active position', error);
+  }
+}
+
+/**
+ * Check if a new execution is allowed (enforce once per calendar month limit)
+ * @param kv - KV namespace
+ * @param chatId - User's chat ID
+ * @returns true if execution is allowed, false otherwise
+ */
+export async function canTrade(kv: KVNamespace, chatId: number | string): Promise<boolean> {
+  try {
+    const latestExecution = await getLatestExecution(kv, chatId);
+    if (!latestExecution) {
+      return true; // No previous executions, execution allowed
     }
 
-    const now = Date.now();
-    const daysSinceLastTrade = (now - lastTrade.entryDate) / (1000 * 60 * 60 * 24);
-
-    return daysSinceLastTrade >= TRADING_CONFIG.TRADING_FREQUENCY_DAYS;
+    const now = new Date();
+    const lastExecutionDate = new Date(latestExecution.executionDate);
+    
+    // Check if last execution was in a different calendar month
+    // Users can execute once per calendar month
+    const sameMonth = now.getUTCFullYear() === lastExecutionDate.getUTCFullYear() &&
+                      now.getUTCMonth() === lastExecutionDate.getUTCMonth();
+    
+    return !sameMonth; // Allow if different month
   } catch (error) {
-    // If there's an error checking, allow trading (fail open)
-    console.error('Error checking trade frequency limit:', error);
+    // If there's an error checking, allow execution (fail open)
+    console.error('Error checking execution frequency limit:', error);
     return true;
   }
 }
 
 /**
+ * Get the calendar month name from a date
+ * @param date - Date object or timestamp
+ * @returns Month name (e.g., "January", "February")
+ */
+export function getMonthName(date: Date | number): string {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleDateString('en-US', { month: 'long' });
+}
+
+/**
  * Record a new trade (BUY signal executed)
+ * @deprecated This function is deprecated. Use recordExecution from executions.ts instead.
  * @param kv - KV namespace
  * @param entryPrice - Entry price for the trade
  * @returns Promise resolving to void
  */
 export async function recordTrade(kv: KVNamespace, entryPrice: number): Promise<void> {
-  try {
-    const trade: TradeRecord = {
-      entryPrice,
-      entryDate: Date.now(),
-      signalType: 'BUY'
-    };
-
-    // Store as last trade
-    await kv.put(KV_KEYS.LAST_TRADE, JSON.stringify(trade));
-
-    // Store as active position
-    await kv.put(KV_KEYS.ACTIVE_POSITION, JSON.stringify({ entryPrice }));
-  } catch (error) {
-    throw createKVError('Failed to record trade', error);
-  }
+  // This function is deprecated and should not be used
+  // New code should use recordExecution from executions.ts
+  console.warn('recordTrade() is deprecated. Use recordExecution() instead.');
 }
 
 /**
- * Clear active position (when SELL signal is executed)
+ * Clear active position for a user (when SELL signal is executed)
  * @param kv - KV namespace
+ * @param chatId - User's chat ID
  * @returns Promise resolving to void
  */
-export async function clearActivePosition(kv: KVNamespace): Promise<void> {
+export async function clearActivePosition(kv: KVNamespace, chatId: number | string): Promise<void> {
   try {
-    await kv.delete(KV_KEYS.ACTIVE_POSITION);
+    const key = activePositionKey(chatId);
+    await kv.delete(key);
   } catch (error) {
     throw createKVError('Failed to clear active position', error);
   }

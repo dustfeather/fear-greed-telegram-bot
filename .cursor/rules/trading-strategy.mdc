@@ -63,8 +63,8 @@ alwaysApply: false
 - **Action**: Execute BUY order when all conditions are met
 
 ## Trading Frequency Limit
-- **Maximum Trades**: 1 per month
-- **Enforcement**: Do not execute more than one trade within any 30-day period
+- **Maximum Trades**: 1 per calendar month
+- **Enforcement**: Do not execute more than one trade within the same calendar month (based on month name, e.g., January, February)
 
 ## Exit Strategy (Profit-Taking)
 - **Method**: All time high

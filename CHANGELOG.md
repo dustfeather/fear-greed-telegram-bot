@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2025-01-20
+
+### Added
+- Optional date parameter for `/execute` command: users can now specify a custom execution date in YYYY-MM-DD format (e.g., `/execute SPY 400.50 2024-01-15`). When provided, the execution date is set to the start of the specified day (UTC). If omitted, the current timestamp is used.
+
 ## 2025-11-18
 
 ### Added
@@ -50,20 +55,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Made indicator calculation more flexible to handle cases with less than 200 trading days (uses fallback values with warnings)
 - Improved trading signal reasoning messages to clearly explain when entry conditions are met but trading is blocked by the 30-day frequency limit
 - Fixed trading signal logic: BUY signals now show as valid when entry conditions are met, even if a trade was executed today (0 days ago). The frequency limit only prevents recording a new trade, not from showing that the signal conditions are valid
+- Added per-user signal execution tracking: users can manually record when they execute signals at specific prices using `/execute TICKER PRICE` command
+- Added `/executions` command to view execution history (optionally filtered by ticker)
+- Signals are now recommendations only - execution is tracked separately per user
+- Removed automatic trade recording from signal evaluation - trades are only recorded when users explicitly execute signals
+- Active positions are now user-specific - each user has their own execution history and positions
+- Trading frequency limit (once per calendar month) now applies only to executed signals, not to signal generation - users can always see signals as recommendations
+- Changed trading frequency limit from 30-day rolling window to calendar month-based restriction (users can execute once per calendar month, e.g., once in January, once in February)
+- When a user has an active position from a previous BUY execution, they will only see SELL or HOLD signals (never another BUY) until the position is closed
 
 ### Technical Details
 - New modules:
   - `src/market-data.ts`: Fetches SPY price data from Yahoo Finance
   - `src/indicators.ts`: Calculates technical indicators (SMA, Bollinger Bands)
   - `src/trading-signal.ts`: Evaluates trading signals based on strategy rules
-  - `src/utils/trades.ts`: Manages trade history and frequency limits
+  - `src/utils/trades.ts`: Manages trade history and frequency limits (now user-specific)
+  - `src/utils/executions.ts`: Manages per-user signal execution history
 - New test files:
   - `tests/indicators.test.js`: Unit tests for indicator calculations
   - `tests/trading-signal.test.js`: Integration tests for signal evaluation
+  - `tests/executions.test.js`: Tests for execution tracking functionality
 - Added `createDataUnavailableSignal()` function in `src/trading-signal.ts` to generate HOLD signals when data sources fail
 - Modified `handleScheduled()` to always generate and send a signal, using fallback HOLD signal when evaluation fails
 - Updated `formatTradingSignalMessage()` to handle data unavailable scenarios with simplified message format
 - Enhanced test coverage for data unavailability scenarios
+- Updated `evaluateTradingSignal()` to accept optional `chatId` parameter for user-specific position checking
+- Updated `getActivePosition()`, `setActivePosition()`, `clearActivePosition()`, and `canTrade()` to be user-specific (require `chatId` parameter)
+- Removed `canTrade` and `lastTradeDate` fields from `TradingSignal` interface (no longer needed for signal display)
+- Deprecated `recordTrade()` function - use `recordExecution()` from executions.ts instead
+- Changed `canTrade()` to use calendar month comparison instead of 30-day rolling window
+- Added `getMonthName()` helper function to format month names in error messages
 
 ### Dependencies
 - Bumped `@cloudflare/workers-types` from `^4.20251014.0` to `^4.20251117.0`

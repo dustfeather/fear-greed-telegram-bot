@@ -115,19 +115,18 @@ runner.test('HOLD signal when conditions not met', async () => {
   assert(signal.conditionC === false, 'Condition C should be false (not fear)');
 });
 
-// Test 3: Trading frequency limit enforcement
-runner.test('Trading frequency limit enforcement', async () => {
+// Test 3: Signal evaluation with user-specific active position
+runner.test('Signal evaluation with active position shows SELL or HOLD', async () => {
   const env = createMockEnv();
+  const chatId = 12345;
   
-  // Set last trade to 10 days ago (within 30-day limit)
-  const lastTrade = {
-    entryPrice: 400,
-    entryDate: Date.now() - (10 * 24 * 60 * 60 * 1000), // 10 days ago
-    signalType: 'BUY'
-  };
-  await env.FEAR_GREED_KV.put('last_trade', JSON.stringify(lastTrade));
+  // Set active position for user
+  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({
+    ticker: 'SPY',
+    entryPrice: 400
+  }));
   
-  const currentPrice = 380;
+  const currentPrice = 500; // Above all-time high (will trigger SELL)
   const fearGreedData = {
     rating: 'Extreme Fear',
     score: 15.0
@@ -137,7 +136,7 @@ runner.test('Trading frequency limit enforcement', async () => {
     'query1.finance.yahoo.com': () => ({
       ok: true,
       status: 200,
-      json: async () => createMockMarketData(currentPrice)
+      json: async () => createMockMarketData(currentPrice, 200)
     }),
     'production.dataviz.cnn.io': () => ({
       ok: true,
@@ -148,43 +147,20 @@ runner.test('Trading frequency limit enforcement', async () => {
   
   global.fetch = mockFetch;
   
-  const signal = await evaluateTradingSignal(env, fearGreedData);
+  // Test with chatId - should check user's active position
+  const signal = await evaluateTradingSignal(env, fearGreedData, 'SPY', chatId);
   
-  // Should indicate trading not allowed
-  assert(signal.canTrade === false, 'Should not allow trading within 30 days');
-  
-  // If all conditions are met, signal should still be BUY (signal is valid)
-  // The frequency limit only prevents recording a new trade, not from showing the signal is valid
-  const entryCondition = (signal.conditionA || signal.conditionB) && signal.conditionC;
-  if (entryCondition) {
-    assert(signal.signal === 'BUY', 'Should be BUY when conditions are met, even if trading is limited');
-    assert(signal.reasoning.includes('BUY signal triggered'), 
-      'Reasoning should indicate BUY signal is triggered');
-    assert(signal.reasoning.includes('Trading frequency limit'), 
-      'Reasoning should mention trading frequency limit as a note');
-    // Should have entry price from last trade if available
-    if (signal.entryPrice) {
-      assertEqual(signal.entryPrice, lastTrade.entryPrice, 'Should use last trade entry price when trading is limited');
-    }
-  }
+  // Should have entry price from active position
+  assert(signal.entryPrice === 400, 'Should have entry price from active position');
+  // Should not show BUY when user has active position
+  assert(signal.signal !== 'BUY', 'Should not show BUY when user has active position');
 });
 
-// Test 3b: BUY signal valid even when trade executed today (0 days ago)
-runner.test('BUY signal valid when trade executed today', async () => {
+// Test 3b: Signal evaluation without chatId shows generic signals
+runner.test('Signal evaluation without chatId shows generic signals', async () => {
   const env = createMockEnv();
   
-  // Set last trade to today (0 days ago) - trade was executed today
-  const lastTrade = {
-    entryPrice: 400,
-    entryDate: Date.now(), // Today
-    signalType: 'BUY'
-  };
-  await env.FEAR_GREED_KV.put('last_trade', JSON.stringify(lastTrade));
-  
-  // Don't set active position - simulate scenario where position might not be set
-  // or was cleared, but trade was recorded today
-  
-  const currentPrice = 380; // Below SMAs, conditions still met
+  const currentPrice = 380; // Below SMAs, conditions met
   const fearGreedData = {
     rating: 'Extreme Fear',
     score: 15.0
@@ -205,19 +181,15 @@ runner.test('BUY signal valid when trade executed today', async () => {
   
   global.fetch = mockFetch;
   
+  // Test without chatId - should show generic signals (no user-specific position check)
   const signal = await evaluateTradingSignal(env, fearGreedData);
   
-  // Trading not allowed (0 days < 30 days)
-  assert(signal.canTrade === false, 'Should not allow trading when trade was executed today');
-  
-  // But signal should still be BUY because conditions are met
-  const entryCondition = (signal.conditionA || signal.conditionB) && signal.conditionC;
-  if (entryCondition) {
-    assert(signal.signal === 'BUY', 'Should show BUY signal when conditions are met, even if trade was executed today');
-    assert(signal.entryPrice === lastTrade.entryPrice, 'Should use last trade entry price');
-    assert(signal.reasoning.includes('BUY signal triggered'), 'Should indicate BUY signal is triggered');
-    assert(signal.reasoning.includes('Trading frequency limit'), 'Should mention trading frequency limit');
-  }
+  // Should evaluate conditions and show signal based on conditions only
+  assert(typeof signal.signal === 'string', 'Signal should have a type');
+  assert(['BUY', 'SELL', 'HOLD'].includes(signal.signal), 'Signal should be BUY, SELL, or HOLD');
+  // Should not have canTrade or lastTradeDate fields
+  assert(!('canTrade' in signal), 'Signal should not have canTrade field');
+  assert(!('lastTradeDate' in signal), 'Signal should not have lastTradeDate field');
 });
 
 // Test 4: Format trading signal message
@@ -237,7 +209,6 @@ runner.test('Format trading signal message', () => {
     conditionA: true,
     conditionB: true,
     conditionC: true,
-    canTrade: true,
     reasoning: 'BUY signal triggered'
   };
   
@@ -257,10 +228,11 @@ runner.test('Format trading signal message', () => {
 // Test 5: SELL signal when price reaches all-time high
 runner.test('SELL signal when price reaches all-time high', async () => {
   const env = createMockEnv();
+  const chatId = 12345;
   
-  // Set active position
+  // Set active position for user
   const entryPrice = 400;
-  await env.FEAR_GREED_KV.put('active_position', JSON.stringify({ entryPrice }));
+  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
   
   // Create market data where all-time high is 500
   // The current price should be at or above the all-time high to trigger SELL
@@ -296,7 +268,7 @@ runner.test('SELL signal when price reaches all-time high', async () => {
   
   global.fetch = mockFetch;
   
-  const signal = await evaluateTradingSignal(env, fearGreedData);
+  const signal = await evaluateTradingSignal(env, fearGreedData, 'SPY', chatId);
   
   // Should trigger SELL when current price >= all-time high
   assert(['BUY', 'SELL', 'HOLD'].includes(signal.signal), 'Signal should be valid type');

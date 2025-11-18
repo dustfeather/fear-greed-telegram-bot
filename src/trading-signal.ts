@@ -6,8 +6,7 @@ import type { Env, TradingSignal, TechnicalIndicators, FearGreedIndexResponse, P
 import { RATINGS, TRADING_CONFIG } from './constants.js';
 import { calculateIndicators } from './indicators.js';
 import { fetchMarketData } from './market-data.js';
-import { canTrade, getActivePosition, recordTrade, clearActivePosition } from './utils/trades.js';
-import { getLastTrade } from './utils/trades.js';
+import { getActivePosition } from './utils/trades.js';
 
 /**
  * Evaluate Condition A: Price below any SMA
@@ -67,7 +66,6 @@ function generateReasoning(
   conditionA: boolean,
   conditionB: boolean,
   conditionC: boolean,
-  canTrade: boolean,
   indicators: TechnicalIndicators
 ): string {
   const reasons: string[] = [];
@@ -83,14 +81,11 @@ function generateReasoning(
     if (conditionC) {
       reasons.push('Fear & Greed Index indicates fear/extreme fear');
     }
-    if (!canTrade) {
-      reasons.push('⚠️ Note: Trading frequency limit active (must wait 30 days since last trade to execute another trade)');
-    }
   } else if (signal === 'SELL') {
     reasons.push('SELL signal triggered');
     reasons.push('Price reached all-time high');
   } else {
-    // HOLD signal - conditions are not met
+    // HOLD signal - conditions are not met or user has active position
     reasons.push('HOLD - No trading signal');
     if (!conditionA && !conditionB) {
       reasons.push('Price is not below SMAs or near BB lower');
@@ -140,7 +135,6 @@ export function createDataUnavailableSignal(
     conditionA: false,
     conditionB: false,
     conditionC: false,
-    canTrade: false,
     reasoning: reasons.join('. ') + '.'
   };
 }
@@ -150,12 +144,14 @@ export function createDataUnavailableSignal(
  * @param env - Environment variables
  * @param fearGreedData - Fear & Greed Index data
  * @param ticker - Ticker symbol (default: 'SPY')
+ * @param chatId - Optional user's chat ID for user-specific position checking
  * @returns Trading signal evaluation result
  */
 export async function evaluateTradingSignal(
   env: Env,
   fearGreedData: FearGreedIndexResponse,
-  ticker: string = 'SPY'
+  ticker: string = 'SPY',
+  chatId?: number | string
 ): Promise<TradingSignal> {
   // Fetch market data
   const marketData = await fetchMarketData(ticker);
@@ -169,10 +165,15 @@ export async function evaluateTradingSignal(
   const conditionB = evaluateConditionB(currentPrice, indicators);
   const conditionC = evaluateConditionC(fearGreedData);
 
-  // Check for active position and trading eligibility
-  const activePosition = await getActivePosition(env.FEAR_GREED_KV);
-  const lastTrade = await getLastTrade(env.FEAR_GREED_KV);
-  const tradingAllowed = await canTrade(env.FEAR_GREED_KV);
+  // Check for user-specific active position if chatId is provided
+  let activePosition: { ticker: string; entryPrice: number } | null = null;
+  if (chatId) {
+    activePosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
+    // Only consider active position if it's for the same ticker
+    if (activePosition && activePosition.ticker.toUpperCase() !== ticker.toUpperCase()) {
+      activePosition = null;
+    }
+  }
 
   // Determine signal type
   let signal: TradingSignal['signal'] = 'HOLD';
@@ -180,18 +181,15 @@ export async function evaluateTradingSignal(
   let entryPrice: number | undefined;
 
   if (activePosition) {
-    // We have an active position, check for SELL signal
-    entryPrice = activePosition;
+    // User has an active position for this ticker, check for SELL signal only
+    entryPrice = activePosition.entryPrice;
     sellTarget = calculateAllTimeHigh(marketData.historicalData);
 
     // SELL signal: price reached all-time high
     if (currentPrice >= sellTarget) {
       signal = 'SELL';
-      // Clear active position when SELL signal is generated
-      await clearActivePosition(env.FEAR_GREED_KV).catch(err => {
-        console.error('Failed to clear active position:', err);
-      });
     }
+    // Otherwise signal remains HOLD (user has position, no new BUY signal)
   } else {
     // No active position, check for BUY signal
     const entryCondition = (conditionA || conditionB) && conditionC;
@@ -199,21 +197,6 @@ export async function evaluateTradingSignal(
     if (entryCondition) {
       // Entry conditions are met - signal is valid
       signal = 'BUY';
-      
-      // Only record a new trade if trading is allowed (30 days have passed since last trade)
-      // If a trade was executed today (0 days ago), the signal is still valid but we don't record another trade
-      if (tradingAllowed) {
-        // Record trade when BUY signal is generated and trading is allowed
-        await recordTrade(env.FEAR_GREED_KV, currentPrice).catch(err => {
-          console.error('Failed to record trade:', err);
-        });
-        entryPrice = currentPrice;
-      } else {
-        // Signal is valid but trading is limited - use last trade entry price if available
-        if (lastTrade) {
-          entryPrice = lastTrade.entryPrice;
-        }
-      }
     }
   }
 
@@ -223,7 +206,6 @@ export async function evaluateTradingSignal(
     conditionA,
     conditionB,
     conditionC,
-    tradingAllowed,
     indicators
   );
 
@@ -234,8 +216,6 @@ export async function evaluateTradingSignal(
     conditionA,
     conditionB,
     conditionC,
-    canTrade: tradingAllowed,
-    lastTradeDate: lastTrade?.entryDate,
     entryPrice,
     sellTarget,
     reasoning
@@ -307,11 +287,6 @@ export function formatTradingSignalMessage(
 
     if (sellTarget) {
       message += `🎯 Sell Target: $${sellTarget.toFixed(2)}\n`;
-    }
-
-    if (signal.lastTradeDate) {
-      const daysSince = Math.floor((Date.now() - signal.lastTradeDate) / (1000 * 60 * 60 * 24));
-      message += `\n⏰ Last Trade: ${daysSince} days ago\n`;
     }
   }
 
