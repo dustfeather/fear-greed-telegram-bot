@@ -81,7 +81,14 @@ export async function handleScheduled(chatId: number | string | null = null, env
     try {
       tradingSignal = await evaluateTradingSignal(env, data, ticker);
     } catch (error) {
-      console.error('Error evaluating trading signal (data sources may be unavailable):', error);
+      // Log detailed error information for debugging
+      const errorDetails = error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      } : String(error);
+      console.error('Error evaluating trading signal (data sources may be unavailable):', JSON.stringify(errorDetails, null, 2));
+      console.error('Full error object:', error);
       // Create HOLD signal with data unavailability reasoning
       tradingSignal = createDataUnavailableSignal(data, ticker);
     }

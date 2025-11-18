@@ -23,7 +23,11 @@ export async function fetchMarketData(ticker: string = 'SPY'): Promise<MarketDat
   const sanitizedTicker = validation.ticker;
   
   const endDate = Math.floor(Date.now() / 1000);
-  const startDate = endDate - (TRADING_CONFIG.HISTORICAL_DAYS_NEEDED * 24 * 60 * 60); // 200 days ago
+  // Request more days to account for weekends and holidays
+  // 200 trading days ≈ 280-300 calendar days (200 * 7/5 = 280 trading days per 280 calendar days)
+  // Use 1.5x multiplier to ensure we get enough trading days even with holidays
+  const calendarDaysToRequest = Math.ceil(TRADING_CONFIG.HISTORICAL_DAYS_NEEDED * 1.5);
+  const startDate = endDate - (calendarDaysToRequest * 24 * 60 * 60);
 
   // Construct URL with validated ticker symbol
   // Using encodeURIComponent for defense-in-depth, though validation ensures alphanumeric-only
@@ -55,7 +59,7 @@ export async function fetchMarketData(ticker: string = 'SPY'): Promise<MarketDat
     );
   }
 
-  const data = await response.json() as {
+  let data: {
     chart?: {
       result?: Array<{
         meta?: {
@@ -75,6 +79,15 @@ export async function fetchMarketData(ticker: string = 'SPY'): Promise<MarketDat
       error?: unknown;
     };
   };
+
+  try {
+    data = await response.json() as typeof data;
+  } catch (jsonError) {
+    console.error(`Failed to parse Yahoo Finance JSON response for ${ticker}:`, jsonError);
+    const responseText = await response.text().catch(() => 'Unable to read response body');
+    console.error(`Response body (first 500 chars):`, responseText.substring(0, 500));
+    throw createApiError(`Failed to parse Yahoo Finance response for ${ticker}`, jsonError);
+  }
 
   // Check for API errors
   if (data.chart?.error) {

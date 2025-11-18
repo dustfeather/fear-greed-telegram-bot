@@ -68,20 +68,39 @@ function calculateBollingerBands(
  * @returns Technical indicators object
  */
 export function calculateIndicators(historicalData: PriceData[]): TechnicalIndicators {
-  if (historicalData.length < TRADING_CONFIG.HISTORICAL_DAYS_NEEDED) {
+  // Require at least 20 days for basic indicators (SMA 20 and Bollinger Bands)
+  if (historicalData.length < 20) {
     throw new Error(
-      `Insufficient historical data: need at least ${TRADING_CONFIG.HISTORICAL_DAYS_NEEDED} days, got ${historicalData.length}`
+      `Insufficient historical data: need at least 20 days for basic indicators, got ${historicalData.length}`
     );
   }
 
   // Extract closing prices (most recent data is at the end)
   const closingPrices = historicalData.map(d => d.close);
 
-  // Calculate SMAs
+  // Calculate SMAs - use the longest available period for each
   const sma20 = calculateSMA(closingPrices, 20);
-  const sma50 = calculateSMA(closingPrices, 50);
-  const sma100 = calculateSMA(closingPrices, 100);
-  const sma200 = calculateSMA(closingPrices, 200);
+  
+  // For SMA 50, use 50 if available, otherwise use all available data (up to 50)
+  const sma50Period = Math.min(50, historicalData.length);
+  const sma50 = calculateSMA(closingPrices, sma50Period);
+  if (sma50Period < 50) {
+    console.warn(`Insufficient data for SMA 50: have ${historicalData.length} days, calculating SMA ${sma50Period} instead`);
+  }
+  
+  // For SMA 100, use 100 if available, otherwise use all available data (up to 100)
+  const sma100Period = Math.min(100, historicalData.length);
+  const sma100 = calculateSMA(closingPrices, sma100Period);
+  if (sma100Period < 100) {
+    console.warn(`Insufficient data for SMA 100: have ${historicalData.length} days, calculating SMA ${sma100Period} instead`);
+  }
+  
+  // For SMA 200, use 200 if available, otherwise use all available data (up to 200)
+  const sma200Period = Math.min(200, historicalData.length);
+  const sma200 = calculateSMA(closingPrices, sma200Period);
+  if (sma200Period < 200) {
+    console.warn(`Insufficient data for SMA 200: have ${historicalData.length} days, calculating SMA ${sma200Period} instead`);
+  }
 
   // Calculate Bollinger Bands (based on SMA 20)
   const bollinger = calculateBollingerBands(closingPrices, TRADING_CONFIG.BOLLINGER_PERIOD, TRADING_CONFIG.BOLLINGER_STDDEV);

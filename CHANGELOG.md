@@ -46,6 +46,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added comprehensive error logging for Yahoo Finance API failures to aid in debugging
 - Added color-coded indicators to trading signals: 🟢 (green) for BUY, 🟡 (yellow) for HOLD, 🔴 (red) for SELL
 - Added TradingView chart links to ticker prices in trading signal messages (e.g., [SPY Price](https://www.tradingview.com/chart/?symbol=SPY))
+- Fixed insufficient historical data issue by requesting 1.5x calendar days to account for weekends and holidays
+- Made indicator calculation more flexible to handle cases with less than 200 trading days (uses fallback values with warnings)
 
 ### Technical Details
 - New modules:
