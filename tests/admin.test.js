@@ -37,10 +37,11 @@ runner.test('List subscribers with multiple users', async () => {
   
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
-      const urlObj = new URL(options.url || '');
-      if (urlObj.pathname.includes('/getChat')) {
-        const body = JSON.parse(options.body || '{}');
-        const chatId = body.chat_id;
+      const body = JSON.parse(options.body || '{}');
+      const chatId = body.chat_id;
+      
+      // Check if this is a getChat call (has chat_id but no text)
+      if (body.chat_id !== undefined && body.text === undefined) {
         return {
           ok: true,
           status: 200,
@@ -55,10 +56,12 @@ runner.test('List subscribers with multiple users', async () => {
           })
         };
       }
+      
+      // Default response for sendMessage and other Telegram API calls
       return {
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, result: {} })
+        json: async () => ({ ok: true, result: { message_id: 123 } })
       };
     }
   });
@@ -83,11 +86,11 @@ runner.test('Automatically unsubscribe blocked users', async () => {
   
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
-      const urlObj = new URL(options.url || '');
-      if (urlObj.pathname.includes('/getChat')) {
-        const body = JSON.parse(options.body || '{}');
-        const chatId = body.chat_id;
-        
+      const body = JSON.parse(options.body || '{}');
+      const chatId = body.chat_id;
+      
+      // Check if this is a getChat call (has chat_id but no text)
+      if (body.chat_id !== undefined && body.text === undefined) {
         // Simulate blocked user
         if (chatId === 'blocked_user') {
           return {
@@ -117,10 +120,12 @@ runner.test('Automatically unsubscribe blocked users', async () => {
           })
         };
       }
+      
+      // Default response for sendMessage and other Telegram API calls
       return {
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, result: {} })
+        json: async () => ({ ok: true, result: { message_id: 123 } })
       };
     }
   });
@@ -133,6 +138,9 @@ runner.test('Automatically unsubscribe blocked users', async () => {
   assertIncludes(result, 'Total subscribers: 2', 'Should show total count of 2 after unsubscribing blocked user');
   assertIncludes(result, '@user111111111', 'Should include first username');
   assertIncludes(result, '@user333333333', 'Should include third username');
+  
+  // Wait a bit for async unsubscribe to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
   
   // Verify blocked user was unsubscribed from KV
   const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
@@ -149,10 +157,11 @@ runner.test('Format includes total count and numbered list', async () => {
   
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
-      const urlObj = new URL(options.url || '');
-      if (urlObj.pathname.includes('/getChat')) {
-        const body = JSON.parse(options.body || '{}');
-        const chatId = body.chat_id;
+      const body = JSON.parse(options.body || '{}');
+      const chatId = body.chat_id;
+      
+      // Check if this is a getChat call (has chat_id but no text)
+      if (body.chat_id !== undefined && body.text === undefined) {
         return {
           ok: true,
           status: 200,
@@ -167,10 +176,12 @@ runner.test('Format includes total count and numbered list', async () => {
           })
         };
       }
+      
+      // Default response for sendMessage and other Telegram API calls
       return {
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, result: {} })
+        json: async () => ({ ok: true, result: { message_id: 123 } })
       };
     }
   });
@@ -216,10 +227,11 @@ runner.test('Rate limiting with batch processing', async () => {
   
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
-      const urlObj = new URL(options.url || '');
-      if (urlObj.pathname.includes('/getChat')) {
-        const body = JSON.parse(options.body || '{}');
-        const chatId = body.chat_id;
+      const body = JSON.parse(options.body || '{}');
+      const chatId = body.chat_id;
+      
+      // Check if this is a getChat call (has chat_id but no text)
+      if (body.chat_id !== undefined && body.text === undefined) {
         return {
           ok: true,
           status: 200,
@@ -234,10 +246,12 @@ runner.test('Rate limiting with batch processing', async () => {
           })
         };
       }
+      
+      // Default response for sendMessage and other Telegram API calls
       return {
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, result: {} })
+        json: async () => ({ ok: true, result: { message_id: 123 } })
       };
     }
   });

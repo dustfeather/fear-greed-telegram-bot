@@ -287,8 +287,22 @@ export async function evaluateTradingSignal(
 
     if ((reachedAllTimeHigh && hasPositiveProfit) || (reachedBollingerUpper && hasPositiveProfit)) {
       signal = 'SELL';
-      exitTrigger = reachedAllTimeHigh ? 'ALL_TIME_HIGH' : 'BOLLINGER_UPPER';
-      sellTarget = exitTrigger === 'ALL_TIME_HIGH' ? allTimeHighTarget : bollingerSellTarget;
+      // Determine which exit condition to use
+      // If only one condition is met, use that one
+      // If both are met, check which threshold the price is closer to
+      const onlyBollinger = reachedBollingerUpper && !reachedAllTimeHigh;
+      const onlyAllTimeHigh = reachedAllTimeHigh && !reachedBollingerUpper;
+      const bothReached = reachedAllTimeHigh && reachedBollingerUpper;
+      
+      if (onlyBollinger || (bothReached && currentPrice >= indicators.bollingerUpper)) {
+        // Price reached or exceeded Bollinger upper
+        exitTrigger = 'BOLLINGER_UPPER';
+        sellTarget = bollingerSellTarget;
+      } else if (onlyAllTimeHigh || (bothReached && currentPrice < indicators.bollingerUpper)) {
+        // Price reached all-time high but not Bollinger upper, or both reached but price is below BB upper
+        exitTrigger = 'ALL_TIME_HIGH';
+        sellTarget = allTimeHighTarget;
+      }
     }
     bollingerSellTargetValue = bollingerSellTarget;
     hasPositiveProfitFlag = hasPositiveProfit;

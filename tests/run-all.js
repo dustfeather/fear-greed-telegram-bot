@@ -17,7 +17,8 @@ const testFiles = [
   'integration.test.js',
   'indicators.test.js',
   'trading-signal.test.js',
-  'watchlist.test.js'
+  'watchlist.test.js',
+  'admin.test.js'
 ];
 
 console.log('🚀 Running comprehensive e2e test suite\n');
