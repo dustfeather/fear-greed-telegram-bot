@@ -3,8 +3,9 @@ import { sub, unsub } from './subs.js';
 import { handleScheduled } from './sched.js';
 import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './send.js';
 import type { Env, TelegramUpdate } from './types.js';
-import { COMMANDS, MESSAGES } from './constants.js';
+import { COMMANDS, MESSAGES, TRADING_CONFIG } from './constants.js';
 import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './utils/response.js';
+import { isValidTicker } from './utils/validation.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -128,8 +129,28 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       } else if (text === COMMANDS.HELP) {
         await sendHelpMessage(chatId, env);
         return successResponse();
-      } else if (text === COMMANDS.NOW) {
-        await handleScheduled(chatId, env);
+      } else if (text.startsWith(COMMANDS.NOW)) {
+        // Parse optional ticker parameter
+        let ticker: string = TRADING_CONFIG.SYMBOL; // Default to SPY
+        
+        const parts = text.trim().split(/\s+/);
+        if (parts.length > 1) {
+          const tickerInput = parts[1];
+          const validation = isValidTicker(tickerInput);
+          
+          if (!validation.isValid) {
+            await sendTelegramMessage(
+              chatId,
+              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+              env
+            );
+            return successResponse();
+          }
+          
+          ticker = validation.ticker;
+        }
+        
+        await handleScheduled(chatId, env, ticker);
         return successResponse();
       } else {
         // Unknown command - still return OK to Telegram

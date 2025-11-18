@@ -56,9 +56,10 @@ async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
  * Handle scheduled event.
  * @param chatId - Optional specific chat ID to send to, or null to send to all subscribers
  * @param env - Environment variables
+ * @param ticker - Ticker symbol (default: 'SPY')
  * @returns Promise resolving to void
  */
-export async function handleScheduled(chatId: number | string | null = null, env: Env): Promise<void> {
+export async function handleScheduled(chatId: number | string | null = null, env: Env, ticker: string = 'SPY'): Promise<void> {
   try {
     // Try to get cached data first
     let data = await getCachedFearGreedIndex(env.FEAR_GREED_KV);
@@ -78,15 +79,15 @@ export async function handleScheduled(chatId: number | string | null = null, env
     // Always evaluate trading signal - if data sources fail, create HOLD signal with explanation
     let tradingSignal;
     try {
-      tradingSignal = await evaluateTradingSignal(env, data);
+      tradingSignal = await evaluateTradingSignal(env, data, ticker);
     } catch (error) {
       console.error('Error evaluating trading signal (data sources may be unavailable):', error);
       // Create HOLD signal with data unavailability reasoning
-      tradingSignal = createDataUnavailableSignal(data);
+      tradingSignal = createDataUnavailableSignal(data, ticker);
     }
     
     // Always format the trading signal message
-    const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data);
+    const tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data, ticker);
     
     // Determine if we need to send message
     const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR) && !chatId;
@@ -127,8 +128,8 @@ export async function handleScheduled(chatId: number | string | null = null, env
     // Even if Fear & Greed Index fetch fails, try to send a HOLD signal with data unavailability
     // This ensures users always receive a signal with reasoning
     try {
-      const dataUnavailableSignal = createDataUnavailableSignal();
-      const tradingSignalMessage = formatTradingSignalMessage(dataUnavailableSignal);
+      const dataUnavailableSignal = createDataUnavailableSignal(undefined, ticker);
+      const tradingSignalMessage = formatTradingSignalMessage(dataUnavailableSignal, undefined, ticker);
       
       // If we have a specific chatId, send the signal
       if (chatId) {

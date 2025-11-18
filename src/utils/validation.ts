@@ -70,3 +70,29 @@ export function isValidTelegramApiResponse(data: unknown): data is TelegramApiRe
   return true;
 }
 
+/**
+ * Validate and sanitize ticker symbol
+ * @param ticker - Ticker symbol to validate
+ * @returns Object with isValid flag and sanitized ticker (uppercase)
+ */
+export function isValidTicker(ticker: string): { isValid: boolean; ticker: string } {
+  if (!ticker || typeof ticker !== 'string') {
+    return { isValid: false, ticker: '' };
+  }
+
+  // Trim and convert to uppercase
+  const sanitized = ticker.trim().toUpperCase();
+
+  // Check length (1-10 characters)
+  if (sanitized.length < 1 || sanitized.length > 10) {
+    return { isValid: false, ticker: sanitized };
+  }
+
+  // Check if alphanumeric only
+  if (!/^[A-Z0-9]+$/.test(sanitized)) {
+    return { isValid: false, ticker: sanitized };
+  }
+
+  return { isValid: true, ticker: sanitized };
+}
+

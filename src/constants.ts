@@ -43,7 +43,8 @@ export const MESSAGES = {
 Available commands:
 /start - Subscribe to Fear and Greed Index alerts.
 /stop - Unsubscribe from Fear and Greed Index alerts.
-/now - Get the current Fear and Greed Index rating.
+/now - Get the current Fear and Greed Index rating and trading signal (default: SPY).
+/now TICKER - Get trading signal for a specific ticker (e.g., /now AAPL).
 /help - Show this help message.
 `
 } as const;

@@ -3,4 +3,5 @@ alwaysApply: true
 ---
 - update changelog
 - changelog should not have separate entries for the same date
-- always use UTC time for the date in the changelog
+- always use the current date in the changelog (YYYY-MM-DD)
+- always update the "Available commands" helper message, when changing any of the commands

@@ -242,7 +242,7 @@ runner.test('Data unavailable signal when market data fails', async () => {
   assert(signal.signal === 'HOLD', 'Should be HOLD signal');
   assert(signal.currentPrice === 0, 'Should have placeholder price');
   assert(signal.reasoning.includes('Insufficient data'), 'Should mention insufficient data');
-  assert(signal.reasoning.includes('Market data unavailable'), 'Should mention market data unavailable');
+  assert(signal.reasoning.includes('Market data') && signal.reasoning.includes('unavailable'), 'Should mention market data unavailable');
   
   // Test formatting
   const message = formatTradingSignalMessage(signal, fearGreedData);

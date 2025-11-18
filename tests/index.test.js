@@ -239,6 +239,99 @@ runner.test('/now command', async () => {
   assert(telegramCallCount >= 1, 'Should send Fear & Greed Index message');
 });
 
+// Test 4b: /now command with ticker parameter
+runner.test('/now command with ticker parameter', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/now AAPL', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'production.dataviz.cnn.io': () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rating: 'Neutral',
+        score: 50.0,
+        timestamp: new Date().toISOString()
+      })
+    }),
+    'query1.finance.yahoo.com': () => ({
+      ok: true,
+      status: 200,
+      json: async () => createMockMarketData(400)
+    }),
+    'quickchart.io': () => ({
+      ok: true,
+      status: 200,
+      url: 'https://quickchart.io/chart?c=...'
+    }),
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount >= 1, 'Should send Fear & Greed Index message');
+});
+
+// Test 4c: /now command with invalid ticker
+runner.test('/now command with invalid ticker', async () => {
+  const env = createMockEnv();
+  const chatId = 123456789;
+  const update = createTelegramUpdate('/now INVALID-TICKER!', chatId);
+  
+  let telegramCallCount = 0;
+  const mockFetch = createMockFetch({
+    'api.telegram.org': () => {
+      telegramCallCount++;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, result: { message_id: 123 } })
+      };
+    }
+  });
+  
+  global.fetch = mockFetch;
+  
+  const request = new Request('http://localhost:8787', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Telegram-Bot-Api-Secret-Token': env.TELEGRAM_WEBHOOK_SECRET
+    },
+    body: JSON.stringify(update)
+  });
+  
+  const response = await index.fetch(request, env, { waitUntil: () => {} });
+  const result = await response.json();
+  
+  assertEqual(response.status, 200, 'Response should be 200');
+  assertEqual(result.ok, true, 'Should return ok: true');
+  assert(telegramCallCount === 1, 'Should send error message for invalid ticker');
+});
+
 // Test 5: Unknown command
 runner.test('Unknown command', async () => {
   const env = createMockEnv();

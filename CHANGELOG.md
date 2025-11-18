@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - Trading signal feature that evaluates buy/sell signals based on technical indicators and Fear & Greed Index
 - SPY (SPDR S&P 500 ETF) price data fetching from Yahoo Finance API
+- `/now` command now accepts optional ticker parameter to get trading signals for any ticker (default: SPY)
+- Ticker validation function to ensure valid ticker symbols (1-10 alphanumeric characters)
+- Support for fetching market data and generating trading signals for any ticker supported by Yahoo Finance
 - Technical indicator calculations:
   - Simple Moving Averages (SMA) for 20, 50, 100, and 200 day periods
   - Bollinger Bands (SMA 20, Standard Deviation 2)
@@ -26,6 +29,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Enhanced `/now` command to include trading signal evaluation and display
+- Updated `/now` command to parse optional ticker parameter (e.g., `/now AAPL`, `/now TSLA`)
+- Modified `fetchMarketData()` to accept ticker parameter (defaults to 'SPY')
+- Updated `evaluateTradingSignal()` and `formatTradingSignalMessage()` to support ticker parameter
+- Enhanced help message to document the new ticker parameter feature
+- Trading signal messages now display the ticker symbol dynamically instead of hardcoded "SPY"
 - Updated scheduled task handler to include trading signal information in messages
 - Extended type definitions to support trading data structures
 - Added trading-related constants and configuration
@@ -47,4 +55,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Modified `handleScheduled()` to always generate and send a signal, using fallback HOLD signal when evaluation fails
 - Updated `formatTradingSignalMessage()` to handle data unavailable scenarios with simplified message format
 - Enhanced test coverage for data unavailability scenarios
+
+### Dependencies
+- Bumped `@cloudflare/workers-types` from `^4.20251014.0` to `^4.20251117.0`
+- Bumped `wrangler` from `^4.45.3` to `^4.48.0`
+- Bumped `@types/node` from `^24.9.2` to `^24.10.1`
 

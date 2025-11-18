@@ -121,10 +121,12 @@ function generateReasoning(
 /**
  * Create a HOLD signal when data sources are unavailable
  * @param fearGreedData - Fear & Greed Index data (may be unavailable)
+ * @param ticker - Ticker symbol (default: 'SPY')
  * @returns Trading signal with HOLD and data unavailability reasoning
  */
 export function createDataUnavailableSignal(
-  fearGreedData?: FearGreedIndexResponse
+  fearGreedData?: FearGreedIndexResponse,
+  ticker: string = 'SPY'
 ): TradingSignal {
   // Create default indicators (all zeros as placeholders)
   const defaultIndicators: TechnicalIndicators = {
@@ -143,7 +145,7 @@ export function createDataUnavailableSignal(
   if (!fearGreedData) {
     reasons.push('Fear & Greed Index data unavailable');
   } else {
-    reasons.push('Market data unavailable');
+    reasons.push(`Market data (${ticker} price and indicators) unavailable`);
   }
 
   return {
@@ -162,14 +164,16 @@ export function createDataUnavailableSignal(
  * Evaluate trading signal based on strategy rules
  * @param env - Environment variables
  * @param fearGreedData - Fear & Greed Index data
+ * @param ticker - Ticker symbol (default: 'SPY')
  * @returns Trading signal evaluation result
  */
 export async function evaluateTradingSignal(
   env: Env,
-  fearGreedData: FearGreedIndexResponse
+  fearGreedData: FearGreedIndexResponse,
+  ticker: string = 'SPY'
 ): Promise<TradingSignal> {
   // Fetch market data
-  const marketData = await fetchMarketData();
+  const marketData = await fetchMarketData(ticker);
   const currentPrice = marketData.currentPrice;
 
   // Calculate indicators
@@ -249,11 +253,13 @@ export async function evaluateTradingSignal(
  * Format trading signal as a human-readable message
  * @param signal - Trading signal evaluation result
  * @param fearGreedData - Fear & Greed Index data (optional, may be unavailable)
+ * @param ticker - Ticker symbol (default: 'SPY')
  * @returns Formatted message string
  */
 export function formatTradingSignalMessage(
   signal: TradingSignal,
-  fearGreedData?: FearGreedIndexResponse
+  fearGreedData?: FearGreedIndexResponse,
+  ticker: string = 'SPY'
 ): string {
   const { signal: signalType, currentPrice, indicators, reasoning, entryPrice, sellTarget } = signal;
 
@@ -272,14 +278,14 @@ export function formatTradingSignalMessage(
     
     if (fearGreedData) {
       message += `*Fear & Greed Index:* ${fearGreedData.rating} (${fearGreedData.score.toFixed(2)}%)\n`;
-      message += `Market data (SPY price and indicators) unavailable.\n\n`;
+      message += `Market data (${ticker} price and indicators) unavailable.\n\n`;
     } else {
       message += `Fear & Greed Index data unavailable.\n`;
-      message += `Market data (SPY price and indicators) unavailable.\n\n`;
+      message += `Market data (${ticker} price and indicators) unavailable.\n\n`;
     }
   } else {
     // Full message format with all data
-    message += `💰 Current SPY Price: $${currentPrice.toFixed(2)}\n\n`;
+    message += `💰 Current ${ticker} Price: $${currentPrice.toFixed(2)}\n\n`;
 
     message += `*Technical Indicators:*\n`;
     message += `• SMA 20: $${indicators.sma20.toFixed(2)}\n`;

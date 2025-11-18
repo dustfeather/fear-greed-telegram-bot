@@ -8,14 +8,18 @@ import { enhancedFetch } from './utils/fetch.js';
 import { createApiError } from './utils/errors.js';
 
 /**
- * Fetch SPY price data from Yahoo Finance
+ * Fetch price data from Yahoo Finance
+ * @param ticker - Ticker symbol (default: 'SPY')
  * @returns Market data with current price and historical data
  */
-export async function fetchMarketData(): Promise<MarketDataResponse> {
+export async function fetchMarketData(ticker: string = 'SPY'): Promise<MarketDataResponse> {
   const endDate = Math.floor(Date.now() / 1000);
   const startDate = endDate - (TRADING_CONFIG.HISTORICAL_DAYS_NEEDED * 24 * 60 * 60); // 200 days ago
 
-  const url = `${API_URLS.YAHOO_FINANCE}?period1=${startDate}&period2=${endDate}&interval=1d&events=history`;
+  // Construct URL with ticker symbol
+  // Replace the ticker symbol at the end of the path (after /chart/)
+  const baseUrl = API_URLS.YAHOO_FINANCE.replace(/\/chart\/[^/?]+/, `/chart/${ticker}`);
+  const url = `${baseUrl}?period1=${startDate}&period2=${endDate}&interval=1d&events=history`;
 
   const response = await enhancedFetch(url, {
     method: 'GET',
