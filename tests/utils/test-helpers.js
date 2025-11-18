@@ -116,7 +116,10 @@ export function createMockFetch(mockResponses = {}) {
     }
     
     // Fallback: return error
-    throw new Error(`No mock response for URL: ${url}`);
+    // This error should cause tests to fail - it indicates missing mock setup
+    const error = new Error(`No mock response for URL: ${url}`);
+    error.name = 'MockResponseError';
+    throw error;
   };
 }
 
@@ -162,6 +165,12 @@ export class TestRunner {
         if (error.stack) {
           console.error(`   ${error.stack.split('\n')[1]?.trim()}`);
         }
+        
+        // Explicitly fail if mock response is missing (indicates test setup issue)
+        if (error.message && error.message.includes('No mock response for URL')) {
+          console.error(`   ⚠️  TEST SETUP ERROR: Missing mock response. This test must fail.`);
+        }
+        
         this.failed++;
       }
     }
@@ -198,6 +207,16 @@ export function assertIncludes(array, item, message) {
 
 export function assertNotIncludes(array, item, message) {
   assert(!array.includes(item), message || `Array should not include ${item}`);
+}
+
+export function assertThrows(fn, message) {
+  try {
+    fn();
+    assert.fail(message || 'Expected function to throw an error');
+  } catch (error) {
+    // Function threw an error as expected
+    return;
+  }
 }
 
 /**

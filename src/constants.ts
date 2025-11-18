@@ -50,10 +50,10 @@ Available commands:
 
 // HTTP Headers
 export const HTTP_HEADERS = {
-  // Headers for CNN API (API requires full browser-like headers to prevent bot detection)
+  // Headers for external APIs (uses full browser-like headers to prevent bot detection)
   // Note: Accept-Encoding header removed as it's handled automatically by the fetch API
-  CNN_API: {
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+  CHROME_HEADERS: {
+    'Accept': 'application/json',
     'Accept-Language': 'en-US,en;q=0.9,ro;q=0.8',
     'Cache-Control': 'max-age=0',
     'Dnt': '1',

@@ -15,7 +15,7 @@ import { evaluateTradingSignal, formatTradingSignalMessage } from './trading-sig
 async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
   const response = await enhancedFetch(API_URLS.FEAR_GREED_INDEX, {
     method: 'GET',
-    headers: HTTP_HEADERS.CNN_API
+    headers: HTTP_HEADERS.CHROME_HEADERS
   });
 
   if (!response.ok) {
@@ -75,14 +75,17 @@ export async function handleScheduled(chatId: number | string | null = null, env
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
     
-    // Evaluate trading signal
+    // Evaluate trading signal only if all data sources are successfully accessed
+    // This requires both CNN (Fear & Greed Index) and Yahoo Finance (price data) to be available
     let tradingSignalMessage = '';
     try {
       const tradingSignal = await evaluateTradingSignal(env, data);
       tradingSignalMessage = formatTradingSignalMessage(tradingSignal, data);
     } catch (error) {
-      console.error('Error evaluating trading signal:', error);
-      // Continue with Fear & Greed Index message even if trading signal fails
+      console.error('Error evaluating trading signal (data sources may be unavailable):', error);
+      // Do not send trading signal if any data source failed
+      // Only send Fear & Greed Index message if trading signal evaluation fails
+      tradingSignalMessage = '';
     }
     
     // Determine if we need to send message
@@ -115,8 +118,15 @@ export async function handleScheduled(chatId: number | string | null = null, env
       }
     } else if (chatId) {
       // If specific chat requested but conditions not met, still send trading signal
+      // Only send if trading signal was successfully generated (all data sources available)
       if (tradingSignalMessage) {
         await sendTelegramMessage(chatId, tradingSignalMessage, env);
+      } else {
+        // If trading signal failed (data sources unavailable), send Fear & Greed Index only
+        const chartUrlPromise = generatePieChart(score);
+        const ratingText = rating.toUpperCase();
+        const messageTemplate = `⚠️ The current [Fear and Greed Index](${await chartUrlPromise}) rating is ${score}% (*${ratingText}*).`;
+        await sendTelegramMessage(chatId, messageTemplate, env);
       }
     }
   } catch (error) {

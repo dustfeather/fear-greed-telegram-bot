@@ -3,7 +3,7 @@
  */
 
 import type { MarketDataResponse, PriceData } from './types.js';
-import { API_URLS, TRADING_CONFIG } from './constants.js';
+import { API_URLS, TRADING_CONFIG, HTTP_HEADERS } from './constants.js';
 import { enhancedFetch } from './utils/fetch.js';
 import { createApiError } from './utils/errors.js';
 
@@ -19,9 +19,7 @@ export async function fetchMarketData(): Promise<MarketDataResponse> {
 
   const response = await enhancedFetch(url, {
     method: 'GET',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
+    headers: HTTP_HEADERS.CHROME_HEADERS
   });
 
   if (!response.ok) {
