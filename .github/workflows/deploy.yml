@@ -7,55 +7,142 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
-    name: Deploy to Cloudflare Workers
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-      - name: Validate Required Secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          
-          # Check required secrets exist
-          REQUIRED_SECRETS=(
-            "TELEGRAM_BOT_TOKEN_SECRET"
-            "ADMIN_CHAT_ID"
-            "FEAR_GREED_KV_NAMESPACE_ID"
-            "CF_API_TOKEN"
-            "CF_ACCOUNT_ID"
-          )
-          
-          MISSING_SECRETS=()
-          for secret in "${REQUIRED_SECRETS[@]}"; do
-            if [ -z "${!secret:-}" ]; then
-              MISSING_SECRETS+=("$secret")
-            fi
-          done
-          
-          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
-            echo "❌ Error: Missing required secrets:"
-            printf '  - %s\n' "${MISSING_SECRETS[@]}"
-            exit 1
-          fi
-          
-          echo "✓ All required secrets are present"
-        env:
-          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
-          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
-          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test
+        continue-on-error: false
+
+  validate:
+    name: Validate (Type Check & Wrangler)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        validation: [type-check, wrangler-validate]
+      fail-fast: false
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate wrangler.jsonc Configuration
+        if: matrix.validation == 'wrangler-validate'
+        shell: bash
+        env:
+          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
+          FEAR_GREED_KV_PREVIEW_ID: ${{ secrets.FEAR_GREED_KV_PREVIEW_ID }}
+        run: |
+          set -euo pipefail
+          
+          # Generate wrangler.jsonc from environment variables using Node.js script
+          node scripts/generate-wrangler-config.js
+          
+          # Verify the file was created and is not empty
+          if [ ! -f wrangler.jsonc ] || [ ! -s wrangler.jsonc ]; then
+            echo "❌ Error: wrangler.jsonc was not created or is empty"
+            exit 1
+          fi
+          
+          # Validate JSONC syntax
+          if ! node -e "require('fs').readFileSync('wrangler.jsonc', 'utf8'); JSON.parse(require('fs').readFileSync('wrangler.jsonc', 'utf8').replace(/\/\/.*/g, ''));" > /dev/null 2>&1; then
+            echo "❌ Error: wrangler.jsonc contains invalid JSON syntax"
+            exit 1
+          fi
+          
+          echo "Configuration preview (values redacted):"
+          sed 's/"id":\s*"[^"]*"/"id": "***REDACTED***"/' wrangler.jsonc | sed 's/"preview_id":\s*"[^"]*"/"preview_id": "***REDACTED***"/' || true
+
+      - name: Run TypeScript Type Check
+        if: matrix.validation == 'type-check'
+        run: npm run type-check
+        continue-on-error: false
+
+      - name: Validate wrangler.jsonc Configuration
+        if: matrix.validation == 'wrangler-validate'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: .
+          command: deploy --dry-run
+        continue-on-error: false
+
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    needs: [test, validate]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Cache wrangler
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm/_npx
+          key: ${{ runner.os }}-wrangler-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-wrangler-
+
+      - name: Install Dependencies
+        run: npm ci
 
       - name: Generate wrangler.jsonc Configuration
         shell: bash
@@ -83,25 +170,6 @@ jobs:
           echo "Configuration preview (values redacted):"
           sed 's/"id":\s*"[^"]*"/"id": "***REDACTED***"/' wrangler.jsonc | sed 's/"preview_id":\s*"[^"]*"/"preview_id": "***REDACTED***"/' || true
 
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run TypeScript Type Check
-        run: npm run type-check
-
-      - name: Run Tests
-        run: npm test
-        continue-on-error: false
-
-      - name: Validate wrangler.jsonc Configuration
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          workingDirectory: .
-          command: deploy --dry-run
-        continue-on-error: false
-
       - name: Set Cloudflare Secrets
         shell: bash
         env:
@@ -114,20 +182,32 @@ jobs:
           set -euo pipefail
           
           # Validate required secrets are not empty
-          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ] || [ -z "${TELEGRAM_WEBHOOK_SECRET:-}" ] || [ -z "${ADMIN_CHAT_ID:-}" ]; then
-            echo "❌ Error: TELEGRAM_BOT_TOKEN_SECRET, TELEGRAM_WEBHOOK_SECRET, or ADMIN_CHAT_ID is empty"
+          REQUIRED_SECRETS=(
+            "TELEGRAM_BOT_TOKEN_SECRET"
+            "TELEGRAM_WEBHOOK_SECRET"
+            "ADMIN_CHAT_ID"
+            "CLOUDFLARE_API_TOKEN"
+            "CLOUDFLARE_ACCOUNT_ID"
+          )
+          
+          MISSING_SECRETS=()
+          for secret in "${REQUIRED_SECRETS[@]}"; do
+            if [ -z "${!secret:-}" ]; then
+              MISSING_SECRETS+=("$secret")
+            fi
+          done
+          
+          if [ ${#MISSING_SECRETS[@]} -ne 0 ]; then
+            echo "❌ Error: Missing or empty required secrets:"
+            printf '  - %s\n' "${MISSING_SECRETS[@]}"
             exit 1
           fi
+          
+          echo "✓ All required secrets are present"
           
           # Validate wrangler.jsonc exists
           if [ ! -f "wrangler.jsonc" ]; then
             echo "❌ Error: wrangler.jsonc not found. Make sure it was generated in the previous step."
-            exit 1
-          fi
-          
-          # Validate Cloudflare credentials are set
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "❌ Error: CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is empty"
             exit 1
           fi
           
