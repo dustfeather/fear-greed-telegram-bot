@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2025-11-27
+
+### Dependencies
+- Bumped `wrangler` from `^4.50.0` to `^4.51.0`
+- Bumped `@cloudflare/kv-asset-handler` from `^0.4.0` to `^0.4.1`
+
 ## 2025-11-26
 
 ### Dependencies
