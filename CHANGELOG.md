@@ -6,30 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## 2025-11-28
 
-### Changed
-- **Major refactoring**: Reorganized project structure into feature-based modules for improved maintainability and scalability
-- Restructured codebase into modular architecture with clear separation of concerns:
-  - `core/` - Shared types, constants, and utilities
-  - `telegram/` - Telegram bot functionality (services, handlers)
-  - `user-management/` - Subscriptions and watchlists (services, repositories)
-  - `trading/` - Trading signals, executions, positions (services, repositories, utils)
-  - `market-data/` - Market data, Fear & Greed Index, charts (services, repositories)
-  - `scheduler/` - Scheduled event processing (handlers)
-- Improved code organization with layered architecture (handlers → services → repositories)
-- Updated all imports to reflect new module structure
-- Reorganized test files to mirror source structure
-
 ### Added
-- Initial D1 database schema migration script for KV to D1 migration
+- D1 database support with SQL repositories for all data operations (subscriptions, watchlists, executions, positions, cache)
+- Automatic KV to D1 migration utility with status tracking
+- SQL migration scripts with proper schema, indexes, and foreign key constraints
+- Comprehensive migration documentation in `MIGRATION.md`
+
+### Changed
+- Reorganized codebase into feature-based modules: `core/`, `telegram/`, `user-management/`, `trading/`, `market-data/`, `scheduler/`
+- Improved architecture with clear separation of concerns (handlers → services → repositories)
 
 ### Dependencies
 - Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`
-
-### Technical Details
-- All functionality preserved - no breaking changes to bot behavior
-- TypeScript compilation verified with zero errors
-- All existing tests passing
-- Better code discoverability and maintainability for future development
 
 ## 2025-11-27
 

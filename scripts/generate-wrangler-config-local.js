@@ -12,16 +12,16 @@ import path from 'path';
 function loadDevVars() {
   const devVarsPath = path.join(process.cwd(), '.dev.vars');
   const vars = {};
-  
+
   if (fs.existsSync(devVarsPath)) {
     const content = fs.readFileSync(devVarsPath, 'utf8');
     const lines = content.split('\n');
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
       // Skip comments and empty lines
       if (!trimmed || trimmed.startsWith('#')) continue;
-      
+
       const match = trimmed.match(/^([^=]+)=(.*)$/);
       if (match) {
         const key = match[1].trim();
@@ -30,7 +30,7 @@ function loadDevVars() {
       }
     }
   }
-  
+
   return vars;
 }
 
@@ -38,9 +38,11 @@ function loadDevVars() {
 const devVars = loadDevVars();
 const FEAR_GREED_KV_NAMESPACE_ID = process.env.FEAR_GREED_KV_NAMESPACE_ID || devVars.FEAR_GREED_KV_NAMESPACE_ID;
 const FEAR_GREED_KV_PREVIEW_ID = process.env.FEAR_GREED_KV_PREVIEW_ID || devVars.FEAR_GREED_KV_PREVIEW_ID || null;
+const FEAR_GREED_D1_DATABASE_ID = process.env.FEAR_GREED_D1_DATABASE_ID || devVars.FEAR_GREED_D1_DATABASE_ID;
 
 // For local development, use a placeholder if not set
 const kvNamespaceId = FEAR_GREED_KV_NAMESPACE_ID || 'local-dev-namespace-id';
+const d1DatabaseId = FEAR_GREED_D1_DATABASE_ID || 'local-dev-database-id';
 
 // Build the configuration object
 const config = {
@@ -81,6 +83,13 @@ const config = {
       binding: 'FEAR_GREED_KV',
       id: kvNamespaceId
     }
+  ],
+  d1_databases: [
+    {
+      binding: 'FEAR_GREED_D1',
+      database_name: 'fear-greed',
+      database_id: d1DatabaseId
+    }
   ]
 };
 
@@ -103,5 +112,10 @@ if (FEAR_GREED_KV_NAMESPACE_ID) {
   }
 } else {
   console.log('⚠️  Using placeholder KV namespace ID (set FEAR_GREED_KV_NAMESPACE_ID in .dev.vars for real KV access)');
+}
+if (FEAR_GREED_D1_DATABASE_ID) {
+  console.log(`✓ D1 database ID: ${FEAR_GREED_D1_DATABASE_ID}`);
+} else {
+  console.log('⚠️  Using placeholder D1 database ID (set FEAR_GREED_D1_DATABASE_ID in .dev.vars for real D1 access)');
 }
 

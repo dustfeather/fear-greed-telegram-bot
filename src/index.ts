@@ -10,6 +10,10 @@ import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatest
 import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './trading/services/position-service.js';
 import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './user-management/services/watchlist-service.js';
 import { isBankHoliday } from './trading/utils/holidays.js';
+import { DataMigrator } from './migration/index.js';
+
+// Track if migration has been checked this Worker instance
+let migrationChecked = false;
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -79,12 +83,43 @@ function isValidTelegramUpdate(update: unknown): update is TelegramUpdate {
 }
 
 /**
+ * Check and run migration if needed (once per Worker instance)
+ * @param env - Environment variables
+ */
+async function checkAndRunMigration(env: Env): Promise<void> {
+  if (migrationChecked) {
+    return; // Already checked in this Worker instance
+  }
+
+  migrationChecked = true;
+
+  try {
+    const migrator = new DataMigrator(env.FEAR_GREED_KV, env.FEAR_GREED_D1);
+    const needsMigration = await migrator.needsMigration();
+
+    if (needsMigration) {
+      console.log('Starting automatic KV to D1 migration...');
+      const status = await migrator.runMigration();
+      console.log('Migration completed successfully:', JSON.stringify(status, null, 2));
+    } else {
+      console.log('Migration already completed, skipping.');
+    }
+  } catch (error) {
+    console.error('Migration check/execution failed:', error);
+    // Don't throw - allow Worker to continue operating with KV
+  }
+}
+
+/**
  * Handle incoming HTTP request.
  * @param request - The incoming HTTP request
  * @param env - Environment variables
  * @returns Promise resolving to HTTP response
  */
 async function handleRequest(request: Request, env: Env): Promise<Response> {
+  // Check and run migration on first request
+  await checkAndRunMigration(env);
+
   const { pathname } = new URL(request.url);
 
   // Handle deployment notification endpoint

@@ -3,10 +3,11 @@
  */
 
 import type { KVNamespace } from '@cloudflare/workers-types';
-import type { Watchlist } from '../../core/types/index.js';
+import type { Env, Watchlist } from '../../core/types/index.js';
 import { createKVError } from '../../core/utils/errors.js';
 import { isValidTicker } from '../../core/utils/validation.js';
-import { getWatchlistData, saveWatchlistData } from '../repositories/watchlist-repository.js';
+import * as KVWatchlistRepo from '../repositories/watchlist-repository.js';
+import * as D1WatchlistRepo from '../repositories/d1-watchlist-repository.js';
 
 const DEFAULT_WATCHLIST: Watchlist = ['SPY'];
 
@@ -32,29 +33,46 @@ function normalizeAndDeduplicate(tickers: string[]): string[] {
 
 /**
  * Initialize watchlist for a user if it doesn't exist
- * @param kv - KV namespace
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @returns true if watchlist was initialized, false if it already existed
  */
 export async function initializeWatchlistIfMissing(
-  kv: KVNamespace,
+  env: Env | KVNamespace,
   chatId: number | string
 ): Promise<boolean> {
   try {
-    const watchlist = await getWatchlistData(kv, chatId);
+    // Check if env is Env object or KVNamespace
+    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
 
-    if (!watchlist) {
-      // Initialize watchlist with default
-      const defaultWatchlist = [...DEFAULT_WATCHLIST];
-      await saveWatchlistData(kv, chatId, defaultWatchlist);
-      return true;
+    let watchlist: Watchlist | null;
+
+    if (isEnvObject) {
+      const envObj = env as Env;
+      watchlist = envObj.FEAR_GREED_D1
+        ? await D1WatchlistRepo.getWatchlist(envObj.FEAR_GREED_D1, chatId)
+        : await KVWatchlistRepo.getWatchlistData(envObj.FEAR_GREED_KV, chatId);
+    } else {
+      watchlist = await KVWatchlistRepo.getWatchlistData(env as KVNamespace, chatId);
     }
 
-    // Validate existing watchlist
-    if (!Array.isArray(watchlist) || watchlist.length === 0) {
-      // Initialize with default if invalid
+    if (!watchlist || watchlist.length === 0) {
+      // Initialize watchlist with default
       const defaultWatchlist = [...DEFAULT_WATCHLIST];
-      await saveWatchlistData(kv, chatId, defaultWatchlist);
+
+      if (isEnvObject) {
+        const envObj = env as Env;
+        if (envObj.FEAR_GREED_D1) {
+          for (const ticker of defaultWatchlist) {
+            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
+          }
+        } else {
+          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
+        }
+      } else {
+        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
+      }
+
       return true;
     }
 
@@ -67,27 +85,43 @@ export async function initializeWatchlistIfMissing(
 /**
  * Get user's watchlist, defaulting to ['SPY'] if empty
  * Automatically initializes watchlist if missing (on first scheduled job or first /now command)
- * @param kv - KV namespace
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @returns User's watchlist
  */
-export async function getWatchlist(kv: KVNamespace, chatId: number | string): Promise<Watchlist> {
+export async function getWatchlist(env: Env | KVNamespace, chatId: number | string): Promise<Watchlist> {
   try {
-    const watchlist = await getWatchlistData(kv, chatId);
+    // Check if env is Env object or KVNamespace
+    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
 
-    if (!watchlist) {
-      // Initialize watchlist for existing users who don't have one
-      // This happens on first scheduled job run or first /now command
-      const defaultWatchlist = [...DEFAULT_WATCHLIST];
-      await saveWatchlistData(kv, chatId, defaultWatchlist);
-      return defaultWatchlist;
+    let watchlist: Watchlist | null;
+
+    if (isEnvObject) {
+      const envObj = env as Env;
+      watchlist = envObj.FEAR_GREED_D1
+        ? await D1WatchlistRepo.getWatchlist(envObj.FEAR_GREED_D1, chatId)
+        : await KVWatchlistRepo.getWatchlistData(envObj.FEAR_GREED_KV, chatId);
+    } else {
+      watchlist = await KVWatchlistRepo.getWatchlistData(env as KVNamespace, chatId);
     }
 
-    // Validate and normalize the watchlist
-    if (!Array.isArray(watchlist) || watchlist.length === 0) {
-      // Initialize with default if invalid
+    if (!watchlist || watchlist.length === 0) {
+      // Initialize watchlist for existing users who don't have one
       const defaultWatchlist = [...DEFAULT_WATCHLIST];
-      await saveWatchlistData(kv, chatId, defaultWatchlist);
+
+      if (isEnvObject) {
+        const envObj = env as Env;
+        if (envObj.FEAR_GREED_D1) {
+          for (const ticker of defaultWatchlist) {
+            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
+          }
+        } else {
+          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
+        }
+      } else {
+        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
+      }
+
       return defaultWatchlist;
     }
 
@@ -96,13 +130,35 @@ export async function getWatchlist(kv: KVNamespace, chatId: number | string): Pr
     // If normalization resulted in empty array, initialize with default
     if (normalized.length === 0) {
       const defaultWatchlist = [...DEFAULT_WATCHLIST];
-      await saveWatchlistData(kv, chatId, defaultWatchlist);
+
+      if (isEnvObject) {
+        const envObj = env as Env;
+        if (envObj.FEAR_GREED_D1) {
+          // Clear existing and add default
+          await D1WatchlistRepo.clearWatchlist(envObj.FEAR_GREED_D1, chatId);
+          for (const ticker of defaultWatchlist) {
+            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
+          }
+        } else {
+          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
+        }
+      } else {
+        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
+      }
+
       return defaultWatchlist;
     }
 
-    // If normalized watchlist differs from stored, update it
-    if (JSON.stringify(normalized) !== JSON.stringify(watchlist)) {
-      await saveWatchlistData(kv, chatId, normalized);
+    // For D1, normalization is already handled by the repository (uppercase)
+    // For KV, update if normalized differs
+    if (!isEnvObject || !(env as Env).FEAR_GREED_D1) {
+      if (JSON.stringify(normalized) !== JSON.stringify(watchlist)) {
+        if (isEnvObject) {
+          await KVWatchlistRepo.saveWatchlistData((env as Env).FEAR_GREED_KV, chatId, normalized);
+        } else {
+          await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, normalized);
+        }
+      }
     }
 
     return normalized;
@@ -112,14 +168,14 @@ export async function getWatchlist(kv: KVNamespace, chatId: number | string): Pr
 }
 
 /**
- * Save watchlist to KV (ensures unique tickers, case-insensitive)
- * @param kv - KV namespace
+ * Save watchlist (ensures unique tickers, case-insensitive)
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @param tickers - Array of ticker symbols
  * @returns Promise resolving to void
  */
 export async function setWatchlist(
-  kv: KVNamespace,
+  env: Env | KVNamespace,
   chatId: number | string,
   tickers: string[]
 ): Promise<void> {
@@ -131,7 +187,23 @@ export async function setWatchlist(
       normalized.push(...DEFAULT_WATCHLIST);
     }
 
-    await saveWatchlistData(kv, chatId, normalized);
+    // Check if env is Env object or KVNamespace
+    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
+
+    if (isEnvObject) {
+      const envObj = env as Env;
+      if (envObj.FEAR_GREED_D1) {
+        // Clear and rebuild watchlist in D1
+        await D1WatchlistRepo.clearWatchlist(envObj.FEAR_GREED_D1, chatId);
+        for (const ticker of normalized) {
+          await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
+        }
+      } else {
+        await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, normalized);
+      }
+    } else {
+      await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, normalized);
+    }
   } catch (error) {
     throw createKVError('Failed to set watchlist', error);
   }
@@ -139,13 +211,13 @@ export async function setWatchlist(
 
 /**
  * Add ticker to watchlist (case-insensitive, prevents duplicates)
- * @param kv - KV namespace
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to add
  * @returns Object with success flag and message
  */
 export async function addTickerToWatchlist(
-  kv: KVNamespace,
+  env: Env | KVNamespace,
   chatId: number | string,
   ticker: string
 ): Promise<{ success: boolean; message: string; wasAlreadyAdded?: boolean }> {
@@ -159,7 +231,7 @@ export async function addTickerToWatchlist(
     }
 
     const normalizedTicker = validation.ticker;
-    const watchlist = await getWatchlist(kv, chatId);
+    const watchlist = await getWatchlist(env, chatId);
 
     // Check if ticker already exists (case-insensitive)
     const exists = watchlist.some(t => t.toUpperCase() === normalizedTicker);
@@ -174,7 +246,7 @@ export async function addTickerToWatchlist(
 
     // Add ticker and save
     watchlist.push(normalizedTicker);
-    await setWatchlist(kv, chatId, watchlist);
+    await setWatchlist(env, chatId, watchlist);
 
     return {
       success: true,
@@ -188,13 +260,13 @@ export async function addTickerToWatchlist(
 
 /**
  * Remove ticker from watchlist (case-insensitive, auto-adds SPY if watchlist becomes empty)
- * @param kv - KV namespace
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to remove
  * @returns Object with success flag and message
  */
 export async function removeTickerFromWatchlist(
-  kv: KVNamespace,
+  env: Env | KVNamespace,
   chatId: number | string,
   ticker: string
 ): Promise<{ success: boolean; message: string; wasRemoved?: boolean; spyReAdded?: boolean }> {
@@ -208,7 +280,7 @@ export async function removeTickerFromWatchlist(
     }
 
     const normalizedTicker = validation.ticker;
-    const watchlist = await getWatchlist(kv, chatId);
+    const watchlist = await getWatchlist(env, chatId);
 
     // Find and remove ticker (case-insensitive)
     const index = watchlist.findIndex(t => t.toUpperCase() === normalizedTicker);
@@ -231,7 +303,7 @@ export async function removeTickerFromWatchlist(
       spyReAdded = true;
     }
 
-    await setWatchlist(kv, chatId, watchlist);
+    await setWatchlist(env, chatId, watchlist);
 
     let message = `Removed ${normalizedTicker} from your watchlist.`;
     if (spyReAdded) {
@@ -251,13 +323,13 @@ export async function removeTickerFromWatchlist(
 
 /**
  * Ensure ticker exists in watchlist (used when opening position, prevents duplicates)
- * @param kv - KV namespace
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to ensure exists
  * @returns Promise resolving to void
  */
 export async function ensureTickerInWatchlist(
-  kv: KVNamespace,
+  env: Env | KVNamespace,
   chatId: number | string,
   ticker: string
 ): Promise<void> {
@@ -269,7 +341,7 @@ export async function ensureTickerInWatchlist(
     }
 
     const normalizedTicker = validation.ticker;
-    const watchlist = await getWatchlist(kv, chatId);
+    const watchlist = await getWatchlist(env, chatId);
 
     // Check if ticker already exists (case-insensitive)
     const exists = watchlist.some(t => t.toUpperCase() === normalizedTicker);
@@ -277,7 +349,7 @@ export async function ensureTickerInWatchlist(
     if (!exists) {
       // Add ticker and save
       watchlist.push(normalizedTicker);
-      await setWatchlist(kv, chatId, watchlist);
+      await setWatchlist(env, chatId, watchlist);
     }
   } catch (error) {
     // Log error but don't throw - this is a convenience function

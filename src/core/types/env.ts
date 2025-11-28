@@ -6,4 +6,5 @@ export interface Env {
   TELEGRAM_WEBHOOK_SECRET: string;
   ADMIN_CHAT_ID?: string;
   FEAR_GREED_KV: KVNamespace;
+  FEAR_GREED_D1: D1Database;
 }

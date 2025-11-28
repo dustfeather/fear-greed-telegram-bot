@@ -3,12 +3,13 @@
  */
 
 import type { KVNamespace } from '@cloudflare/workers-types';
-import type { FearGreedIndexResponse } from '../../core/types/index.js';
+import type { Env, FearGreedIndexResponse } from '../../core/types/index.js';
 import { API_URLS, HTTP_HEADERS } from '../../core/constants/index.js';
 import { enhancedFetch } from '../../core/utils/fetch.js';
 import { createApiError } from '../../core/utils/errors.js';
 import { isValidFearGreedIndexResponse } from '../../core/utils/validation.js';
-import { getCachedFearGreedIndex, cacheFearGreedIndex } from '../repositories/cache-repository.js';
+import * as KVCacheRepo from '../repositories/cache-repository.js';
+import * as D1CacheRepo from '../repositories/d1-cache-repository.js';
 
 /**
  * Fetch Fear & Greed Index from API
@@ -55,20 +56,47 @@ export async function fetchFearGreedIndex(): Promise<FearGreedIndexResponse> {
 
 /**
  * Get Fear & Greed Index with caching
- * @param kv - KV namespace for caching
+ * @param env - Environment variables (or KV namespace for backward compatibility)
  * @returns Fear & Greed Index data
  */
-export async function getFearGreedIndex(kv: KVNamespace): Promise<FearGreedIndexResponse> {
+export async function getFearGreedIndex(env: Env | KVNamespace): Promise<FearGreedIndexResponse> {
+  // Check if env is Env object or KVNamespace
+  const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
+
+  let data: FearGreedIndexResponse | null = null;
+
   // Try to get cached data first
-  let data = await getCachedFearGreedIndex(kv);
+  if (isEnvObject) {
+    const envObj = env as Env;
+    data = envObj.FEAR_GREED_D1
+      ? await D1CacheRepo.get<FearGreedIndexResponse>(envObj.FEAR_GREED_D1, 'fear_greed_index')
+      : await KVCacheRepo.getCachedFearGreedIndex(envObj.FEAR_GREED_KV);
+  } else {
+    data = await KVCacheRepo.getCachedFearGreedIndex(env as KVNamespace);
+  }
 
   // If no cache or cache expired, fetch fresh data
   if (!data) {
     data = await fetchFearGreedIndex();
+
     // Cache the fresh data (non-blocking)
-    cacheFearGreedIndex(kv, data).catch(err => {
-      console.error('Failed to cache Fear & Greed Index:', err);
-    });
+    if (isEnvObject) {
+      const envObj = env as Env;
+      if (envObj.FEAR_GREED_D1) {
+        // Cache for 24 hours (86400000 ms)
+        D1CacheRepo.set(envObj.FEAR_GREED_D1, 'fear_greed_index', data, 86400000).catch(err => {
+          console.error('Failed to cache Fear & Greed Index in D1:', err);
+        });
+      } else {
+        KVCacheRepo.cacheFearGreedIndex(envObj.FEAR_GREED_KV, data).catch(err => {
+          console.error('Failed to cache Fear & Greed Index in KV:', err);
+        });
+      }
+    } else {
+      KVCacheRepo.cacheFearGreedIndex(env as KVNamespace, data).catch(err => {
+        console.error('Failed to cache Fear & Greed Index:', err);
+      });
+    }
   }
 
   return data;

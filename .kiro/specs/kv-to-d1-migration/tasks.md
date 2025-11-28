@@ -11,7 +11,7 @@
   - Include comments documenting each table and column
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 2. Update environment configuration for D1
+- [x] 2. Update environment configuration for D1
   - Update `src/core/types/env.ts` to add FEAR_GREED_D1 binding to Env interface
   - Update `scripts/generate-wrangler-config.js` to add D1 database binding configuration
   - Add D1_DATABASE_ID environment variable handling
@@ -20,7 +20,7 @@
 
 ## Phase 2: D1 Repository Implementation
 
-- [ ] 3. Implement D1 error handling utilities
+- [x] 3. Implement D1 error handling utilities
   - Create `src/core/utils/d1-errors.ts` with D1Error, D1ConstraintError, and D1TransactionError classes
   - Add error wrapping functions for D1 operations
   - Include operation context and original error details in all error types
@@ -42,7 +42,7 @@
   - **Property 21: Error logging completeness**
   - **Validates: Requirements 11.5**
 
-- [ ] 4. Implement D1SubscriptionRepository
+- [x] 4. Implement D1SubscriptionRepository
   - Create `src/user-management/repositories/d1-subscription-repository.ts`
   - Implement getChatIds(), addChatId(), removeChatId(), chatIdExists() methods
   - Use parameterized queries for all operations
@@ -58,7 +58,7 @@
   - **Property 12: Service API compatibility**
   - **Validates: Requirements 8.2**
 
-- [ ] 5. Implement D1WatchlistRepository
+- [x] 5. Implement D1WatchlistRepository
   - Create `src/user-management/repositories/d1-watchlist-repository.ts`
   - Implement getWatchlist(), addTicker(), removeTicker(), clearWatchlist() methods
   - Use parameterized queries for all operations
@@ -66,7 +66,7 @@
   - Return types matching existing KV repository interfaces
   - _Requirements: 3.2, 3.6, 3.7, 3.8_
 
-- [ ] 6. Implement D1ExecutionRepository
+- [x] 6. Implement D1ExecutionRepository
   - Create `src/trading/repositories/d1-execution-repository.ts`
   - Implement recordExecution(), getExecutionHistory(), getLatestExecution() methods
   - Use parameterized queries for all operations
@@ -74,7 +74,7 @@
   - Return types matching existing KV repository interfaces
   - _Requirements: 3.3, 3.6, 3.7, 3.8_
 
-- [ ] 7. Implement D1PositionRepository
+- [x] 7. Implement D1PositionRepository
   - Create `src/trading/repositories/d1-position-repository.ts`
   - Implement getActivePosition(), setActivePosition(), clearActivePosition() methods
   - Use parameterized queries for all operations
@@ -82,7 +82,7 @@
   - Return types matching existing KV repository interfaces
   - _Requirements: 3.4, 3.6, 3.7, 3.8_
 
-- [ ] 8. Implement D1CacheRepository
+- [x] 8. Implement D1CacheRepository
   - Create `src/market-data/repositories/d1-cache-repository.ts`
   - Implement get(), set(), delete(), cleanup() methods
   - Use parameterized queries for all operations
@@ -93,13 +93,13 @@
 
 ## Phase 3: Data Migration Implementation
 
-- [ ] 9. Create migration status tracking
+- [x] 9. Create migration status tracking
   - Create `migrations/002_migration_status.sql` for _migration_status table
   - Add id, completed, completed_at, and version columns
   - Ensure only one row can exist (CHECK constraint on id = 1)
   - _Requirements: 4.7_
 
-- [ ] 10. Implement data migration utility
+- [x] 10. Implement data migration utility
   - Create `src/migration/data-migrator.ts` with DataMigrator class
   - Implement needsMigration() to check if migration is required
   - Implement migrateSubscriptions() to migrate chat_ids array to users table
@@ -148,7 +148,7 @@
   - **Property 28: Related operations use transactions**
   - **Validates: Requirements 14.2**
 
-- [ ] 11. Implement data validation utility
+- [x] 11. Implement data validation utility
   - Create `src/migration/data-validator.ts` with validation functions
   - Implement validateChatIds() to verify all KV chat IDs exist in D1
   - Implement validateWatchlistCounts() to compare counts between KV and D1
@@ -173,7 +173,7 @@
   - **Property 16: Active position count validation**
   - **Validates: Requirements 9.4**
 
-- [ ] 12. Integrate migration into Worker startup
+- [x] 12. Integrate migration into Worker startup
   - Update `src/index.ts` to check for migration need on startup
   - Run migration automatically if D1 is configured and migration not completed
   - Log migration results and mark migration as complete
@@ -182,35 +182,35 @@
 
 ## Phase 4: Service Layer Integration
 
-- [ ] 13. Update subscription service for D1
+- [x] 13. Update subscription service for D1
   - Update `src/user-management/services/subscription-service.ts` to use D1SubscriptionRepository
   - Maintain existing service method signatures
   - Use dependency injection for repository implementation
   - Ensure all existing tests continue to pass
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 14. Update watchlist service for D1
+- [x] 14. Update watchlist service for D1
   - Update `src/user-management/services/watchlist-service.ts` to use D1WatchlistRepository
   - Maintain existing service method signatures
   - Use dependency injection for repository implementation
   - Ensure all existing tests continue to pass
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 15. Update execution service for D1
+- [x] 15. Update execution service for D1
   - Update `src/trading/services/execution-service.ts` to use D1ExecutionRepository
   - Maintain existing service method signatures
   - Use dependency injection for repository implementation
   - Ensure all existing tests continue to pass
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 16. Update position service for D1
+- [x] 16. Update position service for D1
   - Update `src/trading/services/position-service.ts` to use D1PositionRepository
   - Maintain existing service method signatures
   - Use dependency injection for repository implementation
   - Ensure all existing tests continue to pass
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 17. Update market data service for D1
+- [x] 17. Update market data service for D1
   - Update `src/market-data/services/fear-greed-service.ts` to use D1CacheRepository
   - Maintain existing service method signatures
   - Use dependency injection for repository implementation
@@ -219,7 +219,7 @@
 
 ## Phase 5: Testing and Validation
 
-- [ ] 18. Checkpoint - Ensure all tests pass
+- [x] 18. Checkpoint - Ensure all tests pass
   - Run `npm test` to verify all unit tests pass
   - Run `npm run type-check` to verify no TypeScript errors
   - Ensure all tests pass, ask the user if questions arise
@@ -277,7 +277,7 @@
 
 ## Phase 6: Deployment and Documentation
 
-- [ ] 21. Update GitHub Actions workflow
+- [x] 21. Update GitHub Actions workflow
   - Update `.github/workflows/deploy.yml` to run D1 migrations
   - Add step to apply schema migrations first using `wrangler d1 execute` with `migrations/001_initial_schema.sql`
   - Add step to apply migration status table using `wrangler d1 execute` with `migrations/002_migration_status.sql`
@@ -285,7 +285,7 @@
   - Add validation step to verify migration success by checking Worker logs
   - _Requirements: 4.7, 4.8_
 
-- [ ] 22. Create migration documentation
+- [x] 22. Create migration documentation
   - Create `MIGRATION.md` with detailed migration process
   - Include schema diagrams showing table relationships
   - Document rollback procedure
@@ -293,14 +293,14 @@
   - Provide examples of common D1 queries
   - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5_
 
-- [ ] 23. Update project documentation
+- [x] 23. Update project documentation
   - Update `README.md` with D1 setup instructions
   - Update `DEPLOYMENT.md` with D1 deployment steps
   - Update `TESTING.md` with D1 testing procedures
   - Add D1 environment variable documentation
   - _Requirements: 16.6_
 
-- [ ] 24. Update CHANGELOG.md
+- [x] 24. Update CHANGELOG.md
   - Add entry for KV to D1 migration
   - Document breaking changes (if any)
   - Document new environment variables required

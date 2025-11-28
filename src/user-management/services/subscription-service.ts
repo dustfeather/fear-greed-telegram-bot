@@ -1,5 +1,6 @@
 import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from '../../core/types/index.js';
-import { getChatIds, addChatId, removeChatId } from '../repositories/subscription-repository.js';
+import * as KVSubscriptionRepo from '../repositories/subscription-repository.js';
+import * as D1SubscriptionRepo from '../repositories/d1-subscription-repository.js';
 import { getWatchlist } from './watchlist-service.js';
 import { getErrorMessage } from '../../core/utils/errors.js';
 import { getChatInfo } from '../../telegram/services/telegram-api.js';
@@ -23,13 +24,16 @@ export function sanitizeSubscriptionResult(result: SubscriptionResult): Sanitize
  */
 export async function sub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    const wasAlreadySubscribed = !(await addChatId(env.FEAR_GREED_KV, chatId));
+    // Use D1 if available, otherwise fall back to KV
+    const wasAlreadySubscribed = env.FEAR_GREED_D1
+      ? !(await D1SubscriptionRepo.addChatId(env.FEAR_GREED_D1, chatId))
+      : !(await KVSubscriptionRepo.addChatId(env.FEAR_GREED_KV, chatId));
 
     // Initialize watchlist with SPY if user doesn't have one
     // This ensures new subscribers start with SPY
     if (!wasAlreadySubscribed) {
       try {
-        await getWatchlist(env.FEAR_GREED_KV, chatId);
+        await getWatchlist(env, chatId);
         // If getWatchlist succeeds, watchlist already exists (or was created with default)
       } catch (error) {
         // If there's an error, the watchlist will be initialized on first access
@@ -37,7 +41,9 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
       }
     }
 
-    const chatIds = await getChatIds(env.FEAR_GREED_KV);
+    const chatIds = env.FEAR_GREED_D1
+      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
+      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
 
     return {
       success: true,
@@ -65,8 +71,14 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
  */
 export async function unsub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    const wasSubscribed = await removeChatId(env.FEAR_GREED_KV, chatId);
-    const chatIds = await getChatIds(env.FEAR_GREED_KV);
+    // Use D1 if available, otherwise fall back to KV
+    const wasSubscribed = env.FEAR_GREED_D1
+      ? await D1SubscriptionRepo.removeChatId(env.FEAR_GREED_D1, chatId)
+      : await KVSubscriptionRepo.removeChatId(env.FEAR_GREED_KV, chatId);
+
+    const chatIds = env.FEAR_GREED_D1
+      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
+      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
 
     return {
       success: true,
@@ -101,7 +113,10 @@ function sleep(ms: number): Promise<void> {
  */
 export async function listSubscribers(env: Env): Promise<string> {
   try {
-    const chatIds = await getChatIds(env.FEAR_GREED_KV);
+    // Use D1 if available, otherwise fall back to KV
+    const chatIds = env.FEAR_GREED_D1
+      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
+      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
 
     if (chatIds.length === 0) {
       return 'Total subscribers: 0\n\nNo subscribers found.';

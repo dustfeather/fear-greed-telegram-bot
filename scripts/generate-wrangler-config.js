@@ -11,10 +11,16 @@ import path from 'path';
 // Read environment variables
 const FEAR_GREED_KV_NAMESPACE_ID = process.env.FEAR_GREED_KV_NAMESPACE_ID;
 const FEAR_GREED_KV_PREVIEW_ID = process.env.FEAR_GREED_KV_PREVIEW_ID || null;
+const FEAR_GREED_D1_DATABASE_ID = process.env.FEAR_GREED_D1_DATABASE_ID;
 
-// Validate required environment variable
+// Validate required environment variables
 if (!FEAR_GREED_KV_NAMESPACE_ID) {
   console.error('❌ Error: FEAR_GREED_KV_NAMESPACE_ID environment variable is required');
+  process.exit(1);
+}
+
+if (!FEAR_GREED_D1_DATABASE_ID) {
+  console.error('❌ Error: FEAR_GREED_D1_DATABASE_ID environment variable is required');
   process.exit(1);
 }
 
@@ -57,6 +63,13 @@ const config = {
       binding: 'FEAR_GREED_KV',
       id: FEAR_GREED_KV_NAMESPACE_ID
     }
+  ],
+  d1_databases: [
+    {
+      binding: 'FEAR_GREED_D1',
+      database_name: 'fear-greed',
+      database_id: FEAR_GREED_D1_DATABASE_ID
+    }
   ]
 };
 
@@ -76,4 +89,5 @@ console.log(`✓ KV namespace ID: ${FEAR_GREED_KV_NAMESPACE_ID}`);
 if (FEAR_GREED_KV_PREVIEW_ID) {
   console.log(`✓ KV preview ID: ${FEAR_GREED_KV_PREVIEW_ID}`);
 }
+console.log(`✓ D1 database ID: ${FEAR_GREED_D1_DATABASE_ID}`);
 

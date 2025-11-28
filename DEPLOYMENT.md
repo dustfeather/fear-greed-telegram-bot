@@ -8,7 +8,8 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 - `TELEGRAM_BOT_TOKEN_SECRET` - Your Telegram bot token from BotFather (stored as Cloudflare Secret)
 - `TELEGRAM_WEBHOOK_SECRET` - A secure random string for verifying webhook requests (stored as Cloudflare Secret). Generate using: `openssl rand -hex 32`
 - `ADMIN_CHAT_ID` - Chat ID for error notifications (stored as Cloudflare Secret)
-- `FEAR_GREED_KV_NAMESPACE_ID` - Production KV namespace ID
+- `FEAR_GREED_KV_NAMESPACE_ID` - Production KV namespace ID (legacy, will be removed after D1 migration)
+- `FEAR_GREED_D1_DATABASE_ID` - Production D1 database ID (required)
 - `CF_API_TOKEN` - Cloudflare API token with Workers permissions
 - `CF_ACCOUNT_ID` - Your Cloudflare account ID
 - `WORKER_URL` - Your deployed Worker URL (e.g., `https://fear-greed-telegram-bot.your-subdomain.workers.dev`) - used for Telegram webhook setup
@@ -38,7 +39,7 @@ Make sure the following secrets are configured in your GitHub repository (Settin
      - Account: Account Settings: Read
    - **Account Resources:** Include - Your Account
 4. Copy the token and add it as `CF_API_TOKEN` secret
-   
+
 **Note:** The GitHub secret is named `CF_API_TOKEN` for brevity, but internally it's mapped to `CLOUDFLARE_API_TOKEN` environment variable for wrangler commands.
 
 ## Getting Your KV Namespace IDs
@@ -54,6 +55,57 @@ npx wrangler kv namespace create "FEAR_GREED_KV" --preview
 ```
 
 The output will show the namespace IDs. Add them to GitHub secrets.
+
+## Setting Up D1 Database
+
+The bot uses Cloudflare D1 for data storage. Follow these steps to create and configure the database:
+
+### 1. Create D1 Database
+
+The D1 database "fear-greed" should already be created in your Cloudflare account. If you need to create it:
+
+```bash
+# Create production database
+npx wrangler d1 create fear-greed
+```
+
+The output will show the database ID. Add it to GitHub secrets as `FEAR_GREED_D1_DATABASE_ID`.
+
+### 2. Run Database Migrations
+
+After creating the database, run the migration scripts to set up the schema:
+
+```bash
+# Apply initial schema
+npx wrangler d1 execute fear-greed --file=migrations/001_initial_schema.sql
+
+# Apply migration status tracking
+npx wrangler d1 execute fear-greed --file=migrations/002_migration_status.sql
+```
+
+### 3. Automatic Data Migration
+
+When you deploy the Worker for the first time with D1 configured, it will automatically:
+- Check if migration is needed
+- Migrate all data from KV to D1
+- Validate the migration
+- Mark migration as complete
+
+The migration only runs once and is idempotent (safe to redeploy).
+
+**For detailed migration information, including schema diagrams, validation process, rollback procedures, and troubleshooting, see [MIGRATION.md](MIGRATION.md).**
+
+### 4. Verify Database Setup
+
+You can verify the database schema was created correctly:
+
+```bash
+# List tables
+npx wrangler d1 execute fear-greed --command="SELECT name FROM sqlite_master WHERE type='table'"
+
+# Check migration status
+npx wrangler d1 execute fear-greed --command="SELECT * FROM _migration_status"
+```
 
 ## Verifying Deployment
 
