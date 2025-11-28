@@ -9,19 +9,26 @@ export default async function globalTeardown() {
   const wranglerProcess = global.__WRANGLER_PROCESS__;
 
   if (wranglerProcess) {
-    // Kill the process and all its children
-    if (process.platform === 'win32') {
-      // Windows requires taskkill to kill process tree
-      spawn('taskkill', ['/pid', wranglerProcess.pid.toString(), '/f', '/t'], {
-        stdio: 'ignore'
-      });
-    } else {
-      // Unix: kill process group
-      process.kill(-wranglerProcess.pid, 'SIGTERM');
-    }
+    try {
+      // Kill the process and all its children
+      if (process.platform === 'win32') {
+        // Windows requires taskkill to kill process tree
+        spawn('taskkill', ['/pid', wranglerProcess.pid.toString(), '/f', '/t'], {
+          stdio: 'ignore'
+        });
+      } else {
+        // Unix: kill process group
+        process.kill(-wranglerProcess.pid, 'SIGTERM');
+      }
 
-    // Wait a bit for cleanup
-    await sleep(1000);
+      // Wait a bit for cleanup
+      await sleep(1000);
+    } catch (error) {
+      // Process may have already exited, which is fine
+      if (error.code !== 'ESRCH') {
+        console.warn('Warning: Error stopping Wrangler process:', error.message);
+      }
+    }
   }
 
   console.log('✓ Worker stopped');
