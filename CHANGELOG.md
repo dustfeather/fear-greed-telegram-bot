@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - Added missing test helper exports (`TestRunner`, `assertEqual`, `assertIncludes`, `assertNotIncludes`) to fix 3 failing test suites
+- Fixed unbound variable error in `scripts/test-worker.sh` by moving color variable definitions before first use
 
 ### Removed
 - Custom TestRunner class and assertion helpers

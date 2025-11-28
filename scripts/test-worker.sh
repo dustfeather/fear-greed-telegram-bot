@@ -8,6 +8,13 @@
 
 set -euo pipefail
 
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 # Configuration
 WORKER_URL="${1:-http://localhost:8787}"
 
@@ -52,13 +59,6 @@ else
     TEST_USER_ID="${TEST_USER_ID:-123456789}"
     echo -e "${YELLOW}⚠️  ADMIN_CHAT_ID not found in .dev.vars, using default test ID${NC}"
 fi
-
-# Colors for output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 # Test counter
 TESTS_PASSED=0
