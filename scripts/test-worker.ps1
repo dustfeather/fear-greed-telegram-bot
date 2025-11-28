@@ -19,7 +19,7 @@ function Read-DevVars {
     if (Test-Path $devVarsPath) {
         $content = Get-Content $devVarsPath -Raw
         $vars = @{}
-        
+
         # Parse KEY=VALUE pairs, skipping comments
         foreach ($line in $content -split "`n") {
             $line = $line.Trim()
@@ -31,7 +31,7 @@ function Read-DevVars {
                 }
             }
         }
-        
+
         return $vars
     }
     return @{}
@@ -109,29 +109,29 @@ function Test-Post {
         [int]$ExpectedStatus = 200,
         [switch]$SkipAuth = $false
     )
-    
+
     Print-Test $TestName
-    
+
     try {
         $headers = @{
             "Content-Type" = "application/json"
         }
-        
+
         # Add webhook secret header unless authentication is skipped
         if (-not $SkipAuth -and -not [string]::IsNullOrEmpty($script:WebhookSecret)) {
             $headers["X-Telegram-Bot-Api-Secret-Token"] = $script:WebhookSecret
         }
-        
+
         $response = Invoke-WebRequest -Uri $WorkerUrl -Method POST -Body $Payload `
             -Headers $headers -UseBasicParsing -ErrorAction Stop
-        
+
         $statusCode = $response.StatusCode
         $body = $response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 10
-        
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Response Body:"
         Write-Host $body
-        
+
         if ($statusCode -eq $ExpectedStatus) {
             Print-Success "HTTP status code is $ExpectedStatus"
             return $true
@@ -140,13 +140,22 @@ function Test-Post {
             return $false
         }
     } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
-        $body = $_.Exception.Response | Get-Member | Out-String
-        
+        $statusCode = 0
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Error: $_"
-        
-        if ($statusCode -eq $ExpectedStatus) {
+
+        if ($statusCode -eq 0) {
+            Write-Host ""
+            Write-Host "⚠️  Connection failed - is the worker running?" -ForegroundColor Yellow
+            Write-Host "   Start the worker with: npm run dev" -ForegroundColor Yellow
+            Write-Host "   Worker URL: $WorkerUrl" -ForegroundColor Yellow
+            Print-Failure "Connection failed"
+            return $false
+        } elseif ($statusCode -eq $ExpectedStatus) {
             Print-Success "HTTP status code is $ExpectedStatus"
             return $true
         } else {
@@ -162,17 +171,17 @@ function Test-Get {
         [string]$TestName,
         [int]$ExpectedStatus = 405
     )
-    
+
     Print-Test $TestName
-    
+
     try {
         $response = Invoke-WebRequest -Uri $WorkerUrl -Method GET -UseBasicParsing -ErrorAction Stop
         $statusCode = $response.StatusCode
         $body = $response.Content
-        
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Response: $body"
-        
+
         if ($statusCode -eq $ExpectedStatus) {
             Print-Success "HTTP status code is $ExpectedStatus (Method not allowed)"
             return $true
@@ -181,13 +190,23 @@ function Test-Get {
             return $false
         }
     } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
+        $statusCode = 0
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
         $body = $_.Exception.Message
-        
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Response: $body"
-        
-        if ($statusCode -eq $ExpectedStatus) {
+
+        if ($statusCode -eq 0) {
+            Write-Host ""
+            Write-Host "⚠️  Connection failed - is the worker running?" -ForegroundColor Yellow
+            Write-Host "   Start the worker with: npm run dev" -ForegroundColor Yellow
+            Write-Host "   Worker URL: $WorkerUrl" -ForegroundColor Yellow
+            Print-Failure "Connection failed"
+            return $false
+        } elseif ($statusCode -eq $ExpectedStatus) {
             Print-Success "HTTP status code is $ExpectedStatus (Method not allowed)"
             return $true
         } else {
@@ -200,19 +219,19 @@ function Test-Get {
 # Test scheduled endpoint
 function Test-Scheduled {
     param([string]$TestName)
-    
+
     Print-Test $TestName
-    
+
     $scheduledUrl = "$WorkerUrl/__scheduled?cron=0+9+*+*+1-5"
-    
+
     try {
         $response = Invoke-WebRequest -Uri $scheduledUrl -Method GET -UseBasicParsing -ErrorAction Stop
         $statusCode = $response.StatusCode
         $body = $response.Content
-        
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Response: $body"
-        
+
         if ($statusCode -eq 200 -or $statusCode -eq 202) {
             Print-Success "Scheduled endpoint responded"
             return $true
@@ -221,13 +240,23 @@ function Test-Scheduled {
             return $false
         }
     } catch {
-        $statusCode = $_.Exception.Response.StatusCode.value__
+        $statusCode = 0
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
         $body = $_.Exception.Message
-        
+
         Write-Host "HTTP Status: $statusCode"
         Write-Host "Response: $body"
-        
-        if ($statusCode -eq 405) {
+
+        if ($statusCode -eq 0) {
+            Write-Host ""
+            Write-Host "⚠️  Connection failed - is the worker running?" -ForegroundColor Yellow
+            Write-Host "   Start the worker with: npm run dev" -ForegroundColor Yellow
+            Write-Host "   Worker URL: $WorkerUrl" -ForegroundColor Yellow
+            Print-Failure "Connection failed"
+            return $false
+        } elseif ($statusCode -eq 405) {
             Write-Host ""
             Write-Host "⚠️  Scheduled endpoint test skipped:" -ForegroundColor Yellow
             Write-Host "   The scheduled endpoint requires wrangler dev to be started with --test-scheduled flag" -ForegroundColor Yellow
@@ -247,10 +276,10 @@ function Test-Scheduled {
 # Create Telegram payload
 function Get-TelegramPayload {
     param([string]$Command)
-    
+
     $messageId = Get-Random -Minimum 1 -Maximum 999999
     $date = [DateTimeOffset]::Now.ToUnixTimeSeconds()
-    
+
     $payload = @{
         message = @{
             message_id = $messageId
@@ -270,7 +299,7 @@ function Get-TelegramPayload {
             text = $Command
         }
     }
-    
+
     return ($payload | ConvertTo-Json -Depth 10)
 }
 

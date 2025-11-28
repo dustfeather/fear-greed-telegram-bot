@@ -4,11 +4,44 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2025-11-28
+
+### Changed
+- **Major refactoring**: Reorganized project structure into feature-based modules for improved maintainability and scalability
+- Restructured codebase into modular architecture with clear separation of concerns:
+  - `core/` - Shared types, constants, and utilities
+  - `telegram/` - Telegram bot functionality (services, handlers)
+  - `user-management/` - Subscriptions and watchlists (services, repositories)
+  - `trading/` - Trading signals, executions, positions (services, repositories, utils)
+  - `market-data/` - Market data, Fear & Greed Index, charts (services, repositories)
+  - `scheduler/` - Scheduled event processing (handlers)
+- Improved code organization with layered architecture (handlers → services → repositories)
+- Updated all imports to reflect new module structure
+- Reorganized test files to mirror source structure
+
+### Technical Details
+- All functionality preserved - no breaking changes to bot behavior
+- TypeScript compilation verified with zero errors
+- All existing tests passing
+- Better code discoverability and maintainability for future development
+
 ## 2025-11-27
 
+### Added
+- Bank holiday detection: scheduled jobs now skip execution on US stock market holidays (New Year's Day, MLK Day, Presidents' Day, Good Friday, Memorial Day, Juneteenth, Independence Day, Labor Day, Thanksgiving, Christmas)
+- Market closed notices: manual `/now` requests on holidays include a notice that markets are closed
+- Weekend observation rules: holidays falling on weekends are automatically observed on the adjacent weekday (Friday for Saturday, Monday for Sunday)
+
 ### Dependencies
+- Added `fast-check` `^3.23.1` for property-based testing
 - Bumped `wrangler` from `^4.50.0` to `^4.51.0`
 - Bumped `@cloudflare/kv-asset-handler` from `^0.4.0` to `^0.4.1`
+
+### Technical Details
+- New module: `src/utils/holidays.ts` with holiday detection logic and UTC timezone consistency
+- Enhanced `handleScheduled` in `src/sched.ts` to check for bank holidays before processing
+- Enhanced `/now` command handler in `src/index.ts` to display market closed notices
+- Comprehensive test coverage: 22 unit tests and 6 integration tests including property-based tests for correctness verification
 
 ## 2025-11-26
 

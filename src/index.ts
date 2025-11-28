@@ -1,14 +1,15 @@
 import type { ScheduledController, ExecutionContext } from '@cloudflare/workers-types';
-import { sub, unsub, listSubscribers } from './subs.js';
-import { handleScheduled } from './sched.js';
-import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './send.js';
-import type { Env, TelegramUpdate } from './types.js';
-import { COMMANDS, MESSAGES } from './constants.js';
-import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './utils/response.js';
-import { isValidTicker } from './utils/validation.js';
-import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './utils/executions.js';
-import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './utils/trades.js';
-import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './utils/watchlist.js';
+import { sub, unsub, listSubscribers } from './user-management/services/subscription-service.js';
+import { handleScheduled } from './scheduler/handlers/scheduled-handler.js';
+import { sendHelpMessage, sendTelegramMessage, broadcastToAllSubscribers } from './telegram/services/message-service.js';
+import type { Env, TelegramUpdate } from './core/types/index.js';
+import { COMMANDS, MESSAGES } from './core/constants/index.js';
+import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './core/utils/response.js';
+import { isValidTicker } from './core/utils/validation.js';
+import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './trading/services/execution-service.js';
+import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './trading/services/position-service.js';
+import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './user-management/services/watchlist-service.js';
+import { isBankHoliday } from './trading/utils/holidays.js';
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -16,7 +17,7 @@ export default {
     // getDay() returns 0 (Sunday) through 6 (Saturday)
     const now = new Date();
     const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    
+
     // Only proceed if it's a weekday (Monday = 1 through Friday = 5)
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
       ctx.waitUntil(handleScheduled(null, env));
@@ -49,31 +50,31 @@ function isValidTelegramUpdate(update: unknown): update is TelegramUpdate {
   if (!update || typeof update !== 'object') {
     return false;
   }
-  
+
   const u = update as Record<string, unknown>;
   const message = u.message || u.edited_message;
-  
+
   if (!message || typeof message !== 'object') {
     return false;
   }
-  
+
   const msg = message as Record<string, unknown>;
-  
+
   // Must have chat with id
   if (!msg.chat || typeof msg.chat !== 'object') {
     return false;
   }
-  
+
   const chat = msg.chat as Record<string, unknown>;
   if (typeof chat.id !== 'number' && typeof chat.id !== 'string') {
     return false;
   }
-  
+
   // Must have text for commands
   if (msg.text && typeof msg.text !== 'string') {
     return false;
   }
-  
+
   return true;
 }
 
@@ -136,11 +137,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         // Parse optional ticker parameter
         const parts = text.trim().split(/\s+/);
         let ticker: string | undefined;
-        
+
         if (parts.length > 1) {
           const tickerInput = parts[1];
           const validation = isValidTicker(tickerInput);
-          
+
           if (!validation.isValid) {
             await sendTelegramMessage(
               chatId,
@@ -149,13 +150,24 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             );
             return successResponse();
           }
-          
+
           ticker = validation.ticker;
         }
-        
+
+        // Check if today is a bank holiday
+        const today = new Date();
+        const holiday = isBankHoliday(today);
+
         // If no ticker specified, use watchlist (handleScheduled will handle it)
         // If ticker specified, use that ticker only (backward compatible)
         await handleScheduled(chatId, env, ticker);
+
+        // Send market closed notice if it's a holiday
+        if (holiday) {
+          const holidayNotice = `\n\n⚠️ *Market Closed*: US stock markets are closed today for ${holiday.name}.`;
+          await sendTelegramMessage(chatId, holidayNotice, env);
+        }
+
         return successResponse();
       } else if (text.startsWith(COMMANDS.EXECUTE)) {
         // Parse /execute TICKER PRICE [DATE] command
@@ -168,11 +180,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           );
           return successResponse();
         }
-        
+
         const tickerInput = parts[1];
         const priceInput = parts[2];
         const dateInput = parts[3]; // Optional date parameter
-        
+
         // Validate ticker
         const tickerValidation = isValidTicker(tickerInput);
         if (!tickerValidation.isValid) {
@@ -184,7 +196,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           return successResponse();
         }
         const ticker = tickerValidation.ticker;
-        
+
         // Validate price
         const executionPrice = parseFloat(priceInput);
         if (isNaN(executionPrice) || executionPrice <= 0) {
@@ -195,7 +207,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           );
           return successResponse();
         }
-        
+
         // Parse and validate optional date parameter (YYYY-MM-DD format)
         let executionDate: number | undefined;
         if (dateInput) {
@@ -209,18 +221,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             );
             return successResponse();
           }
-          
+
           // Parse the date and convert to timestamp (start of day UTC)
           const dateParts = dateInput.split('-');
           const year = parseInt(dateParts[0], 10);
           const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
           const day = parseInt(dateParts[2], 10);
-          
+
           const date = new Date(Date.UTC(year, month, day));
-          
+
           // Validate the date is valid (e.g., not Feb 30)
-          if (date.getUTCFullYear() !== year || 
-              date.getUTCMonth() !== month || 
+          if (date.getUTCFullYear() !== year ||
+              date.getUTCMonth() !== month ||
               date.getUTCDate() !== day) {
             await sendTelegramMessage(
               chatId,
@@ -229,10 +241,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             );
             return successResponse();
           }
-          
+
           executionDate = date.getTime();
         }
-        
+
         // Check if user can execute (once per calendar month limit)
         const tradingAllowed = await canTrade(env.FEAR_GREED_KV, chatId);
         if (!tradingAllowed) {
@@ -257,18 +269,18 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           }
           return successResponse();
         }
-        
+
         // Get user's active position for this ticker
         const activePosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
         const hasActivePosition = activePosition && activePosition.ticker.toUpperCase() === ticker.toUpperCase();
-        
+
         // Determine signal type
         const signalType = hasActivePosition ? 'SELL' : 'BUY';
-        
+
         // Record execution
         try {
           await recordExecution(env.FEAR_GREED_KV, chatId, signalType, ticker, executionPrice, undefined, executionDate);
-          
+
           // Update active position
           if (signalType === 'BUY') {
             await setActivePosition(env.FEAR_GREED_KV, chatId, ticker, executionPrice);
@@ -278,16 +290,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             // SELL execution closes ALL open positions for this ticker
             await clearActivePosition(env.FEAR_GREED_KV, chatId);
           }
-          
+
           const signalEmoji = signalType === 'BUY' ? '🟢' : '🔴';
           let executionMessage = `${signalEmoji} *Execution Recorded*\n\n*Signal:* ${signalType}\n*Ticker:* ${ticker}\n*Price:* $${executionPrice.toFixed(2)}`;
-          
+
           if (signalType === 'SELL') {
             executionMessage += `\n\n✅ All open positions for ${ticker} have been closed.`;
           }
-          
+
           executionMessage += `\n\nExecution has been recorded in your history.`;
-          
+
           await sendTelegramMessage(chatId, executionMessage, env);
         } catch (error) {
           console.error('Error recording execution:', error);
@@ -297,17 +309,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             env
           );
         }
-        
+
         return successResponse();
       } else if (text.startsWith(COMMANDS.EXECUTIONS)) {
         // Parse /executions [TICKER] command
         const parts = text.trim().split(/\s+/);
         let ticker: string | undefined;
-        
+
         if (parts.length > 1) {
           const tickerInput = parts[1];
           const validation = isValidTicker(tickerInput);
-          
+
           if (!validation.isValid) {
             await sendTelegramMessage(
               chatId,
@@ -316,15 +328,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             );
             return successResponse();
           }
-          
+
           ticker = validation.ticker;
         }
-        
+
         // Get execution history
         try {
           const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId, ticker);
           const formatted = formatExecutionHistory(history);
-          
+
           if (ticker) {
             await sendTelegramMessage(
               chatId,
@@ -346,12 +358,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             env
           );
         }
-        
+
         return successResponse();
       } else if (text.startsWith(COMMANDS.WATCHLIST)) {
         // Parse /watchlist command
         const parts = text.trim().split(/\s+/);
-        
+
         if (parts.length === 1) {
           // /watchlist - Show current watchlist
           try {
@@ -359,7 +371,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             const watchlistText = watchlist.length > 0
               ? watchlist.map(t => `• $${t}`).join('\n')
               : '• $SPY (default)';
-            
+
             await sendTelegramMessage(
               chatId,
               `*Your Watchlist:*\n\n${watchlistText}\n\nUse /watchlist add TICKER to add a ticker.\nUse /watchlist remove TICKER to remove a ticker.`,
@@ -377,7 +389,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           // /watchlist add TICKER
           const tickerInput = parts[2];
           const result = await addTickerToWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
-          
+
           if (result.success) {
             await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
           } else {
@@ -387,7 +399,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           // /watchlist remove TICKER
           const tickerInput = parts[2];
           const result = await removeTickerFromWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
-          
+
           if (result.success) {
             await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
           } else {
@@ -401,7 +413,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             env
           );
         }
-        
+
         return successResponse();
       } else if (text === COMMANDS.SUBSCRIBERS) {
         // Admin-only command: list all subscribers
@@ -411,7 +423,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           // Non-admin user - silently ignore (don't reveal command exists)
           return successResponse();
         }
-        
+
         // Admin user - process command
         try {
           const subscriberList = await listSubscribers(env);
@@ -424,7 +436,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
             env
           );
         }
-        
+
         return successResponse();
       } else {
         // Unknown command - still return OK to Telegram
@@ -450,29 +462,29 @@ async function handleDeployNotify(request: Request, env: Env): Promise<Response>
   try {
     // Parse request body once (can only be read once)
     const body = await request.json() as { token?: string; commitHash?: string; commitMessage?: string; commitUrl?: string; timestamp?: string };
-    
+
     // Get token from Authorization header or request body
     const authHeader = request.headers.get('Authorization');
     let providedToken: string | null = null;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       providedToken = authHeader.substring(7);
     } else {
       providedToken = body.token || null;
     }
-    
+
     // Validate token
     if (!providedToken || providedToken !== env.TELEGRAM_BOT_TOKEN_SECRET) {
       return unauthorizedResponse('Invalid token');
     }
-    
+
     // Extract commit information
     const { commitHash, commitMessage, commitUrl } = body;
-    
+
     if (!commitHash || !commitMessage || !commitUrl) {
       return badRequestResponse('Missing required fields: commitHash, commitMessage, commitUrl');
     }
-    
+
     // Format deployment notification message
     const message = `🚀 New version deployed!
 
@@ -480,10 +492,10 @@ Commit: \`${commitHash}\`
 Message: ${commitMessage.split('\n')[0]}
 
 🔗 [View on GitHub](${commitUrl})`;
-    
+
     // Broadcast to all subscribers
     const broadcastResult = await broadcastToAllSubscribers(message, env);
-    
+
     return successResponse({
       success: true,
       broadcast: broadcastResult

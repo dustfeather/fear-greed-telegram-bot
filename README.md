@@ -15,6 +15,8 @@ A Telegram bot that provides automated trading signals based on the Fear and Gre
 - Market data integration: fetch price data from Yahoo Finance for any ticker symbol
 - Per-user watchlist: manage your own list of tickers to monitor
 - Scheduled automatic broadcasts: receive trading signals for all tickers in your watchlist on weekdays
+- Bank holiday detection: scheduled jobs automatically skip US stock market holidays (New Year's Day, MLK Day, Presidents' Day, Good Friday, Memorial Day, Juneteenth, Independence Day, Labor Day, Thanksgiving, Christmas)
+- Market closed notices: manual requests on holidays include a notice that markets are closed
 - Per-user execution tracking: record and view your trading signal executions with optional date parameter
 - Active position tracking: automatically tracks open positions and adjusts signals accordingly
 - Trading frequency limits: calendar month-based restrictions (once per month)
@@ -98,16 +100,39 @@ For comprehensive testing instructions, see [TESTING.md](TESTING.md).
 
 ## Project Structure
 
-- `src/index.ts` - Main Worker entry point (HTTP and scheduled handlers)
-- `src/send.ts` - Telegram message sending utilities
-- `src/subs.ts` - Subscription management (KV storage)
-- `src/sched.ts` - Scheduled event handler (Fear & Greed Index fetching and trading signals)
-- `src/chart.ts` - Chart generation using QuickChart
-- `src/market-data.ts` - Market data fetching from Yahoo Finance
-- `src/indicators.ts` - Technical indicator calculations (SMA, Bollinger Bands)
-- `src/trading-signal.ts` - Trading signal evaluation logic
-- `src/utils/trades.ts` - Trade history and frequency limit management
-- `src/utils/executions.ts` - Per-user execution tracking
-- `src/utils/validation.ts` - Input validation utilities
-- `scripts/generate-wrangler-config.js` - Script to generate wrangler.jsonc from environment variables
-- `.dev.vars.example` - Example file for local development secrets
+The project follows a modular architecture organized by feature domains:
+
+### Core Modules
+- `src/core/` - Shared types, constants, and utilities
+  - `types/` - TypeScript type definitions (env, telegram, trading, market)
+  - `constants/` - Application constants and configuration
+  - `utils/` - Shared utilities (errors, validation, fetch, response)
+
+### Feature Modules
+- `src/telegram/` - Telegram bot functionality
+  - `services/` - Message sending and Telegram API client
+  - `handlers/` - Webhook and command processing
+  - `utils/` - Telegram-specific helpers
+
+- `src/user-management/` - User subscriptions and watchlists
+  - `services/` - Subscription and watchlist business logic
+  - `repositories/` - Data access layer for KV storage
+
+- `src/trading/` - Trading signals and execution tracking
+  - `services/` - Signal evaluation, execution tracking, position management
+  - `repositories/` - Data access for executions and positions
+  - `utils/` - Technical indicators and holiday detection
+
+- `src/market-data/` - Market data and Fear & Greed Index
+  - `services/` - Market data fetching, Fear & Greed Index, chart generation
+  - `repositories/` - Caching layer
+
+- `src/scheduler/` - Scheduled event processing
+  - `handlers/` - Cron job handler for automated broadcasts
+
+### Entry Point
+- `src/index.ts` - Main Cloudflare Worker entry point
+
+### Configuration
+- `scripts/` - Build and deployment scripts
+- `.dev.vars.example` - Example environment variables for local development

@@ -20,6 +20,9 @@ jspm_packages/
 # Serverless directories
 .serverless/
 
+# Build output
+dist/
+
 # wrangler project
 .dev.vars
 .wrangler/

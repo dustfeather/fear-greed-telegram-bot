@@ -89,31 +89,49 @@ test_post() {
     local payload="$2"
     local expected_status="${3:-200}"
     local skip_auth="${4:-false}"
-    
+
     print_test "$test_name"
-    
+
     # Build curl headers
     local curl_headers=("-H" "Content-Type: application/json")
-    
+
     # Add webhook secret header unless authentication is skipped
     if [ "$skip_auth" != "true" ] && [ -n "$WEBHOOK_SECRET" ]; then
         curl_headers+=("-H" "X-Telegram-Bot-Api-Secret-Token: $WEBHOOK_SECRET")
     fi
-    
+
     response=$(curl -s -w "\n%{http_code}" -X POST "$WORKER_URL" \
         "${curl_headers[@]}" \
-        -d "$payload") || {
-        print_failure "Failed to connect to $WORKER_URL"
+        -d "$payload" 2>&1) || {
+        echo "HTTP Status: 0"
+        echo "Error: Connection failed"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
         return 1
     }
-    
+
     http_code=$(echo "$response" | tail -n1)
     body=$(echo "$response" | sed '$d')
-    
+
+    # Check if we got a valid HTTP code
+    if ! [[ "$http_code" =~ ^[0-9]+$ ]]; then
+        echo "HTTP Status: 0"
+        echo "Error: $response"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
+        return 1
+    fi
+
     echo "HTTP Status: $http_code"
     echo "Response Body:"
     echo "$body" | jq '.' 2>/dev/null || echo "$body"
-    
+
     if [ "$http_code" -eq "$expected_status" ]; then
         print_success "HTTP status code is $expected_status"
         return 0
@@ -127,20 +145,38 @@ test_post() {
 test_get() {
     local test_name="$1"
     local expected_status="${2:-405}"
-    
+
     print_test "$test_name"
-    
-    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL") || {
-        print_failure "Failed to connect to $WORKER_URL"
+
+    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL" 2>&1) || {
+        echo "HTTP Status: 0"
+        echo "Error: Connection failed"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
         return 1
     }
-    
+
     http_code=$(echo "$response" | tail -n1)
     body=$(echo "$response" | sed '$d')
-    
+
+    # Check if we got a valid HTTP code
+    if ! [[ "$http_code" =~ ^[0-9]+$ ]]; then
+        echo "HTTP Status: 0"
+        echo "Error: $response"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
+        return 1
+    fi
+
     echo "HTTP Status: $http_code"
     echo "Response: $body"
-    
+
     if [ "$http_code" -eq "$expected_status" ]; then
         print_success "HTTP status code is $expected_status (Method not allowed)"
         return 0
@@ -153,20 +189,38 @@ test_get() {
 # Test scheduled endpoint
 test_scheduled() {
     local test_name="$1"
-    
+
     print_test "$test_name"
-    
-    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL/__scheduled?cron=0+9+*+*+1-5") || {
-        print_failure "Failed to connect to $WORKER_URL"
+
+    response=$(curl -s -w "\n%{http_code}" "$WORKER_URL/__scheduled?cron=0+9+*+*+1-5" 2>&1) || {
+        echo "HTTP Status: 0"
+        echo "Error: Connection failed"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
         return 1
     }
-    
+
     http_code=$(echo "$response" | tail -n1)
     body=$(echo "$response" | sed '$d')
-    
+
+    # Check if we got a valid HTTP code
+    if ! [[ "$http_code" =~ ^[0-9]+$ ]]; then
+        echo "HTTP Status: 0"
+        echo "Error: $response"
+        echo ""
+        echo -e "${YELLOW}⚠️  Connection failed - is the worker running?${NC}"
+        echo -e "${YELLOW}   Start the worker with: npm run dev${NC}"
+        echo -e "${YELLOW}   Worker URL: $WORKER_URL${NC}"
+        print_failure "Connection failed"
+        return 1
+    fi
+
     echo "HTTP Status: $http_code"
     echo "Response: $body"
-    
+
     if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 202 ]; then
         print_success "Scheduled endpoint responded"
         return 0

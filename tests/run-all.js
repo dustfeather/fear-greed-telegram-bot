@@ -10,15 +10,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const testFiles = [
-  'subs.test.js',
-  'send.test.js',
-  'sched.test.js',
-  'index.test.js',
-  'integration.test.js',
-  'indicators.test.js',
-  'trading-signal.test.js',
-  'watchlist.test.js',
-  'admin.test.js'
+  'user-management/services/subscription-service.test.js',
+  'telegram/services/message-service.test.js',
+  'scheduler/handlers/scheduled-handler.test.js',
+  'telegram/handlers/webhook-handler.test.js',
+  'integration/webhook-integration.test.js',
+  'trading/utils/indicators.test.js',
+  'trading/services/signal-service.test.js',
+  'user-management/services/watchlist-service.test.js',
+  'integration/admin-integration.test.js',
+  'trading/utils/holidays.test.js',
+  'trading/utils/holidays-integration.test.js',
+  'trading/services/execution-service.test.js',
+  'integration/worker-integration.test.js'
 ];
 
 console.log('🚀 Running comprehensive e2e test suite\n');
@@ -31,13 +35,13 @@ async function runTest(file) {
   return new Promise((resolve) => {
     console.log(`\n📋 Running ${file}...`);
     console.log('-'.repeat(60));
-    
+
     const testPath = join(__dirname, file);
     const proc = spawn('npx', ['tsx', testPath], {
       stdio: 'inherit',
       shell: true
     });
-    
+
     proc.on('close', (code) => {
       if (code === 0) {
         totalPassed++;
@@ -47,7 +51,7 @@ async function runTest(file) {
         resolve(false);
       }
     });
-    
+
     proc.on('error', (err) => {
       console.error(`Error running ${file}:`, err);
       totalFailed++;
@@ -60,14 +64,14 @@ async function runAllTests() {
   for (const file of testFiles) {
     await runTest(file);
   }
-  
+
   console.log('\n' + '═'.repeat(60));
   console.log('\n📊 Final Test Summary');
   console.log('═'.repeat(60));
   console.log(`✅ Passed: ${totalPassed}`);
   console.log(`❌ Failed: ${totalFailed}`);
   console.log(`📈 Total:  ${totalPassed + totalFailed}`);
-  
+
   if (totalFailed > 0) {
     console.log('\n❌ Some tests failed!');
     process.exit(1);
