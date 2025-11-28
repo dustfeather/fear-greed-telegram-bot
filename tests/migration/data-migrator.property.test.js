@@ -2,11 +2,9 @@
  * Data Migration Property Tests
  */
 
-import { TestRunner, createMockEnv, createMockKV, createMockD1 } from '../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockKV, createMockD1 } from '../utils/test-helpers.js';
 import fc from 'fast-check';
 
-const runner = new TestRunner();
 
 /**
  * **Feature: kv-to-d1-migration, Property 3: Migration idempotency**
@@ -15,7 +13,7 @@ const runner = new TestRunner();
  * Running migration multiple times should produce the same result as running it once.
  * No duplicate data should be created on repeated migrations.
  */
-runner.test('Property 3: Migration idempotency', async () => {
+test('Property 3: Migration idempotency', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(fc.integer({ min: 100000000, max: 999999999 }), { minLength: 1, maxLength: 10 }),
@@ -36,7 +34,7 @@ runner.test('Property 3: Migration idempotency', async () => {
           const ids = JSON.parse(existingIds);
 
           // Verify data hasn't changed
-          assert.deepStrictEqual(ids.sort(), chatIds.sort(), 'Data should remain consistent across runs');
+          expect(ids.sort()).toEqual(chatIds.sort()); // Data should remain consistent across runs
         }
 
         return true;
@@ -45,7 +43,7 @@ runner.test('Property 3: Migration idempotency', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -54,7 +52,7 @@ runner.test('Property 3: Migration idempotency', async () => {
  *
  * All chat IDs from KV should be migrated to D1 users table without loss.
  */
-runner.test('Property 6: Subscription data migration completeness', async () => {
+test('Property 6: Subscription data migration completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(fc.integer({ min: 100000000, max: 999999999 }), { minLength: 0, maxLength: 20 }),
@@ -62,18 +60,18 @@ runner.test('Property 6: Subscription data migration completeness', async () => 
         const uniqueChatIds = [...new Set(chatIds)];
 
         // Verify no duplicates after deduplication
-        assert(uniqueChatIds.length <= chatIds.length, 'Deduplication should not increase count');
+        expect(uniqueChatIds.length <= chatIds.length).toBeTruthy(); // Deduplication should not increase count
 
         // Verify all original IDs are present
         for (const id of uniqueChatIds) {
-          assert(chatIds.includes(id), 'All unique IDs should be in original array');
+          expect(chatIds.includes(id)).toBeTruthy(); // All unique IDs should be in original array
         }
 
         // Simulate migration completeness check
         const migratedCount = uniqueChatIds.length;
         const originalCount = uniqueChatIds.length;
 
-        assert(migratedCount === originalCount, 'All chat IDs should be migrated');
+        expect(migratedCount === originalCount).toBeTruthy(); // All chat IDs should be migrated
 
         return true;
       }
@@ -81,7 +79,7 @@ runner.test('Property 6: Subscription data migration completeness', async () => 
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -90,7 +88,7 @@ runner.test('Property 6: Subscription data migration completeness', async () => 
  *
  * All watchlist entries from KV should be migrated to D1 without loss.
  */
-runner.test('Property 7: Watchlist data migration completeness', async () => {
+test('Property 7: Watchlist data migration completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -110,7 +108,7 @@ runner.test('Property 7: Watchlist data migration completeness', async () => {
           migratedEntries += watchlist.tickers.length;
         }
 
-        assert(migratedEntries === totalEntries, 'All watchlist entries should be migrated');
+        expect(migratedEntries === totalEntries).toBeTruthy(); // All watchlist entries should be migrated
 
         return true;
       }
@@ -118,7 +116,7 @@ runner.test('Property 7: Watchlist data migration completeness', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -127,7 +125,7 @@ runner.test('Property 7: Watchlist data migration completeness', async () => {
  *
  * All execution history records from KV should be migrated to D1 without loss.
  */
-runner.test('Property 8: Execution history migration completeness', async () => {
+test('Property 8: Execution history migration completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -154,7 +152,7 @@ runner.test('Property 8: Execution history migration completeness', async () => 
           migratedExecutions += data.executions.length;
         }
 
-        assert(migratedExecutions === totalExecutions, 'All execution records should be migrated');
+        expect(migratedExecutions === totalExecutions).toBeTruthy(); // All execution records should be migrated
 
         return true;
       }
@@ -162,7 +160,7 @@ runner.test('Property 8: Execution history migration completeness', async () => 
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -171,7 +169,7 @@ runner.test('Property 8: Execution history migration completeness', async () => 
  *
  * All active position records from KV should be migrated to D1 without loss.
  */
-runner.test('Property 9: Active position migration completeness', async () => {
+test('Property 9: Active position migration completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -194,11 +192,11 @@ runner.test('Property 9: Active position migration completeness', async () => {
         }
 
         // Verify unique positions per chat ID
-        assert(chatIdMap.size <= positions.length, 'Should have at most one position per chat ID');
+        expect(chatIdMap.size <= positions.length).toBeTruthy(); // Should have at most one position per chat ID
 
         // Simulate migration
         const migratedCount = chatIdMap.size;
-        assert(migratedCount === chatIdMap.size, 'All active positions should be migrated');
+        expect(migratedCount === chatIdMap.size).toBeTruthy(); // All active positions should be migrated
 
         return true;
       }
@@ -206,7 +204,7 @@ runner.test('Property 9: Active position migration completeness', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -215,7 +213,7 @@ runner.test('Property 9: Active position migration completeness', async () => {
  *
  * All cache entries from KV should be migrated to D1 without loss.
  */
-runner.test('Property 10: Cache data migration completeness', async () => {
+test('Property 10: Cache data migration completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -235,7 +233,7 @@ runner.test('Property 10: Cache data migration completeness', async () => {
 
         // Simulate migration
         const migratedCount = uniqueEntries.size;
-        assert(migratedCount === uniqueEntries.size, 'All cache entries should be migrated');
+        expect(migratedCount === uniqueEntries.size).toBeTruthy(); // All cache entries should be migrated
 
         return true;
       }
@@ -243,7 +241,7 @@ runner.test('Property 10: Cache data migration completeness', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -253,7 +251,7 @@ runner.test('Property 10: Cache data migration completeness', async () => {
  * Migration should continue processing remaining records even if some records fail,
  * and should report all errors in the summary.
  */
-runner.test('Property 11: Migration error resilience', async () => {
+test('Property 11: Migration error resilience', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -282,11 +280,11 @@ runner.test('Property 11: Migration error resilience', async () => {
 
         // Verify we processed all records
         const totalProcessed = successCount + errors.length;
-        assert(totalProcessed === records.length, 'Should process all records despite errors');
+        expect(totalProcessed === records.length).toBeTruthy(); // Should process all records despite errors
 
         // Verify error tracking
         const expectedErrors = records.filter(r => r.shouldFail).length;
-        assert(errors.length === expectedErrors, 'Should track all errors');
+        expect(errors.length === expectedErrors).toBeTruthy(); // Should track all errors
 
         return true;
       }
@@ -294,7 +292,7 @@ runner.test('Property 11: Migration error resilience', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -303,7 +301,7 @@ runner.test('Property 11: Migration error resilience', async () => {
  *
  * Batch operations should use transactions to ensure atomicity and consistency.
  */
-runner.test('Property 27: Batch operations use transactions', async () => {
+test('Property 27: Batch operations use transactions', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -330,10 +328,10 @@ runner.test('Property 27: Batch operations use transactions', async () => {
           const allSuccess = results.every(r => r.success);
           const allFailed = results.every(r => !r.success);
 
-          assert(allSuccess || allFailed, 'Batch operations should be atomic');
+          expect(allSuccess || allFailed).toBeTruthy(); // Batch operations should be atomic
         } catch (error) {
           // Transaction failure is acceptable
-          assert(error instanceof Error, 'Should handle transaction errors');
+          expect(error instanceof Error).toBeTruthy(); // Should handle transaction errors
         }
 
         return true;
@@ -342,7 +340,7 @@ runner.test('Property 27: Batch operations use transactions', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -351,7 +349,7 @@ runner.test('Property 27: Batch operations use transactions', async () => {
  *
  * Related operations that must succeed or fail together should use transactions.
  */
-runner.test('Property 28: Related operations use transactions', async () => {
+test('Property 28: Related operations use transactions', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 100000000, max: 999999999 }),
@@ -375,10 +373,10 @@ runner.test('Property 28: Related operations use transactions', async () => {
           const allSuccess = results.every(r => r.success);
           const allFailed = results.every(r => !r.success);
 
-          assert(allSuccess || allFailed, 'Related operations should be atomic');
+          expect(allSuccess || allFailed).toBeTruthy(); // Related operations should be atomic
         } catch (error) {
           // Transaction failure is acceptable
-          assert(error instanceof Error, 'Should handle transaction errors');
+          expect(error instanceof Error).toBeTruthy(); // Should handle transaction errors
         }
 
         return true;
@@ -387,8 +385,7 @@ runner.test('Property 28: Related operations use transactions', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
-// Run tests
-runner.run().catch(console.error);
+// Empty describe block removed - no additional tests needed

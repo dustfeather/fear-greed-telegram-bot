@@ -3,10 +3,8 @@
  */
 
 import index from '../../src/index.js';
-import { TestRunner, createMockEnv, createMockFetch, createTelegramUpdate, assertEqual, assertIncludes, assertNotIncludes } from '../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockFetch, createTelegramUpdate, assertEqual, assertIncludes, assertNotIncludes } from '../utils/test-helpers.js';
 
-const runner = new TestRunner();
 
 // Helper to create mock market data response
 function createMockMarketData(currentPrice = 400, days = 200) {
@@ -51,8 +49,22 @@ function createMockMarketData(currentPrice = 400, days = 200) {
   };
 }
 
+describe('Webhook Integration', () => {
+  let originalFetch;
+  let originalDate;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    originalDate = global.Date;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    global.Date = originalDate;
+  });
+
 // Test 1: Complete user flow: subscribe -> get index -> unsubscribe
-runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async () => {
+test('Complete user flow: subscribe -> get index -> unsubscribe', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -138,14 +150,14 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
   assertNotIncludes(chatIdsAfter.results.map(r => Number(r.chat_id)), chatId, 'User should be unsubscribed');
 
   // Verify messages were sent
-  assert(telegramMessages.length >= 3, 'Should send at least 3 messages');
-  assert(telegramMessages.some(m => m.includes('subscribed')), 'Should send subscription message');
-  assert(telegramMessages.some(m => m.includes('Fear and Greed Index')), 'Should send index message');
-  assert(telegramMessages.some(m => m.includes('unsubscribed')), 'Should send unsubscription message');
+  expect(telegramMessages.length >= 3).toBeTruthy(); // Should send at least 3 messages
+  expect(telegramMessages.some(m => m.includes('subscribed'))).toBeTruthy(); // Should send subscription message
+  expect(telegramMessages.some(m => m.includes('Fear and Greed Index'))).toBeTruthy(); // Should send index message
+  expect(telegramMessages.some(m => m.includes('unsubscribed'))).toBeTruthy(); // Should send unsubscription message
 });
 
 // Test 2: Multiple users subscribe and receive alerts
-runner.test('Multiple users subscribe and receive alerts', async () => {
+test('Multiple users subscribe and receive alerts', async () => {
   const env = createMockEnv();
   const chatId1 = 111111111;
   const chatId2 = 222222222;
@@ -215,7 +227,7 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
 
   // Verify all subscribed in D1
   const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assertEqual(chatIds.results.length, 3, 'Should have 3 subscribers');
+  expect(chatIds.results.length).toBe(3); // Should have 3 subscribers
 
   // Trigger scheduled event (fear rating should send to all)
   const { handleScheduled } = await import('../../src/scheduler/handlers/scheduled-handler.js');
@@ -224,7 +236,7 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
   try {
     // Verify all received the alert
     // Should have 3 subscription confirmations + 3 fear alerts = 6 messages
-    assertEqual(telegramRecipients.length, 6, 'Should send to all subscribers (3 subscriptions + 3 alerts)');
+    expect(telegramRecipients.length).toBe(6); // Should send to all subscribers (3 subscriptions + 3 alerts)
     assertIncludes(telegramRecipients, chatId1, 'User 1 should receive alert');
     assertIncludes(telegramRecipients, chatId2, 'User 2 should receive alert');
     assertIncludes(telegramRecipients, chatId3, 'User 3 should receive alert');
@@ -234,7 +246,7 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
 });
 
 // Test 3: Subscribe twice, unsubscribe once
-runner.test('Subscribe twice, unsubscribe once', async () => {
+test('Subscribe twice, unsubscribe once', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -273,8 +285,8 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
 
   // Verify still only one subscription in D1
   const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assertEqual(chatIds.results.length, 1, 'Should have only 1 subscription');
-  assertEqual(chatIds.results.filter(row => Number(row.chat_id) === chatId).length, 1, 'Should have only one instance');
+  expect(chatIds.results.length).toBe(1); // Should have only 1 subscription
+  expect(chatIds.results.filter(row => Number(row.chat_id) === chatId).length).toBe(1); // Should have only one instance
 
   // Unsubscribe once
   const update3 = createTelegramUpdate('/stop', chatId);
@@ -290,11 +302,11 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
 
   // Verify unsubscribed in D1
   const chatIdsAfter = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assertEqual(chatIdsAfter.results.length, 0, 'Should have 0 subscriptions');
+  expect(chatIdsAfter.results.length).toBe(0); // Should have 0 subscriptions
 });
 
 // Test 4: Help command shows all commands
-runner.test('Help command shows all commands', async () => {
+test('Help command shows all commands', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -325,14 +337,14 @@ runner.test('Help command shows all commands', async () => {
 
   await index.fetch(request, env, { waitUntil: () => {} });
 
-  assert(helpMessage.includes('/start'), 'Help should include /start');
-  assert(helpMessage.includes('/stop'), 'Help should include /stop');
-  assert(helpMessage.includes('/now'), 'Help should include /now');
-  assert(helpMessage.includes('/help'), 'Help should include /help');
+  expect(helpMessage.includes('/start')).toBeTruthy(); // Help should include /start
+  expect(helpMessage.includes('/stop')).toBeTruthy(); // Help should include /stop
+  expect(helpMessage.includes('/now')).toBeTruthy(); // Help should include /now
+  expect(helpMessage.includes('/help')).toBeTruthy(); // Help should include /help
 });
 
 // Test 5: Error handling flow
-runner.test('Error handling flow', async () => {
+test('Error handling flow', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -374,8 +386,8 @@ runner.test('Error handling flow', async () => {
   await new Promise(resolve => setTimeout(resolve, 200));
 
   // The error should be handled gracefully (no crash)
-  assert(true, 'Should handle errors gracefully');
+  expect(true).toBeTruthy(); // Should handle errors gracefully
 });
 
-// Run tests
-runner.run().catch(console.error);
+
+});

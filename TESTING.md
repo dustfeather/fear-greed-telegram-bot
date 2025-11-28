@@ -1,5 +1,69 @@
 # Testing Guide
 
+## Automated Testing with Jest
+
+The project uses Jest for automated testing with automatic Wrangler dev server management. All tests run automatically without manual worker startup.
+
+### Running Tests
+
+```bash
+# Run all tests (Jest automatically starts/stops the worker)
+npm test
+
+# Run tests in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run tests with coverage reporting
+npm run test:coverage
+
+# Run tests in CI mode
+npm run test:ci
+
+# Debug tests with Node.js inspector
+npm run test:debug
+```
+
+### Running Specific Tests
+
+```bash
+# Run a specific test file
+npm test -- tests/core/utils/d1-errors.test.js
+
+# Run tests matching a pattern
+npm test -- --testNamePattern="should handle errors"
+
+# Run tests in a specific directory
+npm test -- tests/integration/
+```
+
+### Test Organization
+
+The test suite includes:
+- **Unit tests**: Test individual functions and classes in isolation
+- **Integration tests**: Test complete user flows through the system
+- **Property-based tests**: Verify properties hold across many generated inputs using fast-check
+
+All tests use Jest's `expect()` API for assertions and are organized with `describe()` blocks for better structure.
+
+### Automatic Worker Management
+
+Jest automatically manages the Wrangler dev server:
+1. Before tests: Starts the worker and waits for it to be ready
+2. During tests: All tests run with the worker available at `http://localhost:8787`
+3. After tests: Stops the worker and cleans up
+
+**No manual worker startup is required** - just run `npm test`.
+
+### Troubleshooting Automated Tests
+
+If tests fail with worker connection errors:
+1. Check that port 8787 is available
+2. Verify `.dev.vars` file exists with required environment variables
+3. Check `wrangler.jsonc` configuration is valid
+4. Look for errors in the global setup output
+
+For more detailed testing guidelines, see [.kiro/steering/testing.md](.kiro/steering/testing.md).
+
 ## Local Development Testing
 
 ### Test Your Telegram Bot Locally

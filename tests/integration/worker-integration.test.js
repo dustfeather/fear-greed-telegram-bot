@@ -2,8 +2,8 @@
  * Worker Integration Tests
  * Tests all endpoints and commands for the Fear and Greed Telegram Bot Worker
  *
- * Requires a running worker instance at http://localhost:8787
- * Run with: npm run dev (in another terminal)
+ * With Jest global setup enabled, the worker is automatically started before tests
+ * and stopped after all tests complete.
  */
 
 import { execSync } from 'child_process';
@@ -28,24 +28,22 @@ async function isWorkerRunning() {
   }
 }
 
-console.log('Running worker integration tests...');
-console.log(`Worker URL: ${workerUrl}`);
-console.log('');
-
-// Check if worker is running before attempting tests
-const workerRunning = await isWorkerRunning();
-
-if (!workerRunning) {
-  console.log('⚠️  Worker is not running at', workerUrl);
-  console.log('   To run these tests, start the worker in another terminal:');
-  console.log('   npm run dev');
+// Worker integration tests - runs shell script that tests the actual worker
+test('Worker integration tests via shell script', async () => {
+  console.log('Running worker integration tests...');
+  console.log(`Worker URL: ${workerUrl}`);
   console.log('');
-  console.log('⏭️  Skipping worker integration tests');
-  console.log('✅ Worker integration tests skipped (worker not running)');
-  process.exit(0);
-}
 
-try {
+  // Check if worker is running
+  const workerRunning = await isWorkerRunning();
+
+  if (!workerRunning) {
+    console.log('⚠️  Worker is not running at', workerUrl);
+    console.log('   This should not happen with global setup enabled');
+    throw new Error('Worker is not running - global setup may have failed');
+  }
+
+  // Run the shell script tests
   if (isWindows) {
     const scriptPath = join(projectRoot, 'scripts', 'test-worker.ps1');
     execSync(`pwsh -File "${scriptPath}" -WorkerUrl "${workerUrl}"`, {
@@ -59,11 +57,6 @@ try {
       cwd: projectRoot,
     });
   }
+
   console.log('\n✅ Worker integration tests completed successfully');
-} catch (error) {
-  console.error('\n❌ Worker integration tests failed');
-  if (!error.message.includes('exit code')) {
-    console.error('Error:', error.message);
-  }
-  process.exit(1);
-}
+});

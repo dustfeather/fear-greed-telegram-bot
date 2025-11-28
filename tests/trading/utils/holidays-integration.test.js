@@ -9,10 +9,8 @@ import { handleScheduled } from '../../../src/scheduler/handlers/scheduled-handl
 import { isBankHoliday, isTradingDay } from '../../../src/trading/utils/holidays.js';
 import { setWatchlist } from '../../../src/user-management/services/watchlist-service.js';
 import { TestRunner } from '../../utils/test-helpers.js';
-import assert from 'node:assert';
 import fc from 'fast-check';
 
-const runner = new TestRunner();
 
 // Mock environment for testing
 function createMockEnv() {
@@ -60,7 +58,7 @@ function stopCapturingLogs() {
 // Integration Tests
 // ============================================================================
 
-runner.test('Scheduled job skips execution on Christmas 2024', async () => {
+test('Scheduled job skips execution on Christmas 2024', async () => {
   const env = createMockEnv();
 
   // Mock the current date to be Christmas 2024
@@ -87,15 +85,15 @@ runner.test('Scheduled job skips execution on Christmas 2024', async () => {
 
     // Verify that execution was skipped
     const skippedLog = logs.find(log => log.includes('Scheduled execution skipped'));
-    assert(skippedLog, 'Should log that execution was skipped');
-    assert(skippedLog.includes('Christmas Day'), 'Should mention Christmas Day in log');
+    expect(skippedLog).toBeTruthy(); // Should log that execution was skipped
+    expect(skippedLog.includes('Christmas Day')).toBeTruthy(); // Should mention Christmas Day in log
   } finally {
     global.Date = originalDate;
     stopCapturingLogs();
   }
 });
 
-runner.test('Scheduled job skips execution on Thanksgiving 2025', async () => {
+test('Scheduled job skips execution on Thanksgiving 2025', async () => {
   const env = createMockEnv();
 
   // Mock the current date to be Thanksgiving 2025
@@ -120,15 +118,15 @@ runner.test('Scheduled job skips execution on Thanksgiving 2025', async () => {
     const logs = stopCapturingLogs();
 
     const skippedLog = logs.find(log => log.includes('Scheduled execution skipped'));
-    assert(skippedLog, 'Should log that execution was skipped');
-    assert(skippedLog.includes('Thanksgiving Day'), 'Should mention Thanksgiving in log');
+    expect(skippedLog).toBeTruthy(); // Should log that execution was skipped
+    expect(skippedLog.includes('Thanksgiving Day')).toBeTruthy(); // Should mention Thanksgiving in log
   } finally {
     global.Date = originalDate;
     stopCapturingLogs();
   }
 });
 
-runner.test('Manual /now request does not skip on holiday', async () => {
+test('Manual /now request does not skip on holiday', async () => {
   const env = createMockEnv();
   const chatId = 123456;
 
@@ -160,7 +158,7 @@ runner.test('Manual /now request does not skip on holiday', async () => {
 
     // Verify that execution was NOT skipped
     const skippedLog = logs.find(log => log.includes('Scheduled execution skipped'));
-    assert(!skippedLog, 'Manual request should not skip execution on holiday');
+    expect(!skippedLog).toBeTruthy(); // Manual request should not skip execution on holiday
   } finally {
     global.Date = originalDate;
     stopCapturingLogs();
@@ -178,7 +176,7 @@ runner.test('Manual /now request does not skip on holiday', async () => {
  * For any bank holiday date, when the scheduled job runs with that date,
  * the system should not send any trading signals to subscribers.
  */
-runner.test('Property 1: Scheduled job skips all bank holidays', async () => {
+test('Property 1: Scheduled job skips all bank holidays', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 2020, max: 2030 }),
@@ -219,7 +217,7 @@ runner.test('Property 1: Scheduled job skips all bank holidays', async () => {
 
           // Verify execution was skipped
           const skippedLog = logs.find(log => log.includes('Scheduled execution skipped'));
-          assert(skippedLog, `Should skip execution on ${holiday.name}`);
+          expect(skippedLog).toBeTruthy(); // Should skip execution on holiday
 
           return true;
         } finally {
@@ -231,7 +229,7 @@ runner.test('Property 1: Scheduled job skips all bank holidays', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -241,7 +239,7 @@ runner.test('Property 1: Scheduled job skips all bank holidays', async () => {
  * For any trading day (weekday that is not a bank holiday), when the scheduled job runs
  * with that date, the system should send trading signals to subscribers.
  */
-runner.test('Property 2: Scheduled job runs on all trading days', async () => {
+test('Property 2: Scheduled job runs on all trading days', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 2020, max: 2030 }),
@@ -281,7 +279,7 @@ runner.test('Property 2: Scheduled job runs on all trading days', async () => {
 
           // Verify execution was NOT skipped
           const skippedLog = logs.find(log => log.includes('Scheduled execution skipped'));
-          assert(!skippedLog, 'Should not skip execution on trading day');
+          expect(!skippedLog).toBeTruthy(); // Should not skip execution on trading day
 
           return true;
         } finally {
@@ -293,7 +291,7 @@ runner.test('Property 2: Scheduled job runs on all trading days', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -303,7 +301,7 @@ runner.test('Property 2: Scheduled job runs on all trading days', async () => {
  * For any bank holiday date, when the scheduled job runs with that date,
  * the system should log a message indicating the execution was skipped due to the holiday.
  */
-runner.test('Property 4: Holiday detection logs skipped executions', async () => {
+test('Property 4: Holiday detection logs skipped executions', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 2020, max: 2030 }),
@@ -347,7 +345,7 @@ runner.test('Property 4: Holiday detection logs skipped executions', async () =>
             log.includes(holiday.name)
           );
 
-          assert(skippedLog, `Should log skipped execution with holiday name: ${holiday.name}`);
+          expect(skippedLog).toBeTruthy(); // Should log skipped execution with holiday name
 
           return true;
         } finally {
@@ -359,7 +357,7 @@ runner.test('Property 4: Holiday detection logs skipped executions', async () =>
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -369,7 +367,7 @@ runner.test('Property 4: Holiday detection logs skipped executions', async () =>
  * For any bank holiday date, when a user requests a signal via /now on that date,
  * the response message should contain a notice that markets are closed.
  */
-runner.test('Property 3: Manual requests on holidays include market closed notice', async () => {
+test('Property 3: Manual requests on holidays include market closed notice', async () => {
   // Import the index module to test the /now command
   const index = await import('../../../src/index.js');
 
@@ -511,8 +509,7 @@ runner.test('Property 3: Manual requests on holidays include market closed notic
             msg.includes(holiday.name)
           );
 
-          assert(hasMarketClosedNotice,
-            `Manual /now request on ${holiday.name} should include market closed notice. Messages: ${JSON.stringify(telegramMessages)}`);
+          expect(hasMarketClosedNotice).toBeTruthy(); // Manual request on holiday should include market closed notice
 
           return true;
         } finally {
@@ -524,8 +521,7 @@ runner.test('Property 3: Manual requests on holidays include market closed notic
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
-// Run all tests
-runner.run();
+// Empty describe block removed - no additional tests needed

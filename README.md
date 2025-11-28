@@ -78,7 +78,20 @@ For comprehensive deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Testing
 
-For comprehensive testing instructions, see [TESTING.md](TESTING.md).
+The project includes comprehensive automated tests using Jest:
+
+```sh
+# Run all automated tests (Jest automatically manages the worker)
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+For manual testing and comprehensive testing instructions, see [TESTING.md](TESTING.md).
 
 ## Quick Start
 

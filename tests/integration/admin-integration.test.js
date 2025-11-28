@@ -3,13 +3,25 @@
  */
 
 import { listSubscribers, sub } from '../../src/user-management/services/subscription-service.js';
-import { TestRunner, createMockEnv, createMockFetch, assertEqual, assertIncludes } from '../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockFetch, assertEqual, assertIncludes } from '../utils/test-helpers.js';
 
-const runner = new TestRunner();
+
+describe('Admin Integration', () => {
+  let originalFetch;
+  let originalDate;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    originalDate = global.Date;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    global.Date = originalDate;
+  });
 
 // Test 1: List subscribers with empty list
-runner.test('List subscribers with empty list', async () => {
+test('List subscribers with empty list', async () => {
   const env = createMockEnv();
 
   const mockFetch = createMockFetch({
@@ -29,7 +41,7 @@ runner.test('List subscribers with empty list', async () => {
 });
 
 // Test 2: List subscribers with multiple users
-runner.test('List subscribers with multiple users', async () => {
+test('List subscribers with multiple users', async () => {
   const env = createMockEnv();
 
   // Add subscribers
@@ -80,7 +92,7 @@ runner.test('List subscribers with multiple users', async () => {
 });
 
 // Test 3: Automatically unsubscribe blocked users
-runner.test('Automatically unsubscribe blocked users', async () => {
+test('Automatically unsubscribe blocked users', async () => {
   const env = createMockEnv();
 
   // Add subscribers including a blocked user
@@ -148,11 +160,11 @@ runner.test('Automatically unsubscribe blocked users', async () => {
 
   // Verify blocked user was unsubscribed from D1
   const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assert(!chatIds.results.some(r => r.chat_id === 'blocked_user'), 'Blocked user should be removed from D1');
+  expect(!chatIds.results.some(r => r.chat_id === 'blocked_user')).toBeTruthy(); // Blocked user should be removed from D1
 });
 
 // Test 4: Format includes total count and numbered list
-runner.test('Format includes total count and numbered list', async () => {
+test('Format includes total count and numbered list', async () => {
   const env = createMockEnv();
 
   // Add 2 subscribers
@@ -196,14 +208,14 @@ runner.test('Format includes total count and numbered list', async () => {
 
   // Check format: total count first, then numbered list
   const lines = result.split('\n');
-  assertEqual(lines[0], 'Total subscribers: 2', 'First line should be total count');
-  assertEqual(lines[1], '', 'Second line should be empty (separator)');
+  expect(lines[0]).toBe('Total subscribers: 2'); // First line should be total count
+  expect(lines[1]).toBe(''); // Second line should be empty (separator)
   assertIncludes(lines[2], '1.', 'Third line should start with "1."');
   assertIncludes(lines[3], '2.', 'Fourth line should start with "2."');
 });
 
 // Test 5: Handle errors gracefully
-runner.test('Handle errors gracefully', async () => {
+test('Handle errors gracefully', async () => {
   const env = createMockEnv();
 
   // Create a broken D1 that throws errors
@@ -222,7 +234,7 @@ runner.test('Handle errors gracefully', async () => {
 });
 
 // Test 6: Rate limiting with batch processing
-runner.test('Rate limiting with batch processing', async () => {
+test('Rate limiting with batch processing', async () => {
   const env = createMockEnv();
 
   // Add many subscribers (more than batch size of 30)
@@ -274,7 +286,7 @@ runner.test('Rate limiting with batch processing', async () => {
 });
 
 // Test 7: Fallback to first_name/last_name when username is missing
-runner.test('Fallback to first_name/last_name when username is missing', async () => {
+test('Fallback to first_name/last_name when username is missing', async () => {
   const env = createMockEnv();
 
   // Add subscribers: one with username, one without username but with first+last name, one with only first name
@@ -346,6 +358,5 @@ runner.test('Fallback to first_name/last_name when username is missing', async (
   assertIncludes(result, 'Bob', 'Should show first_name only when username and last_name are missing');
 });
 
-// Run tests
-runner.run().catch(console.error);
 
+});

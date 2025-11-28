@@ -140,26 +140,84 @@ For more details, see the [README.md](README.md) and [TESTING.md](TESTING.md) fi
 
 ## Testing
 
+This project uses Jest for automated testing with automatic Wrangler dev server management.
+
+### Running Tests
+
 Before submitting your changes, make sure all tests pass:
 
 ```sh
+# Run all automated tests (Jest automatically manages the worker)
 npm test
-```
 
-Also run type checking:
+# Run tests in watch mode during development
+npm run test:watch
 
-```sh
+# Run tests with coverage
+npm run test:coverage
+
+# Run type checking
 npm run type-check
 ```
 
+### Automatic Worker Management
+
+Jest automatically handles the Wrangler dev server lifecycle:
+- **Before tests**: Starts the worker and waits for it to be ready
+- **During tests**: All tests run with the worker available
+- **After tests**: Stops the worker and cleans up
+
+**No manual worker startup is required** - just run `npm test`.
+
+### Troubleshooting Test Issues
+
+If tests fail with worker connection errors:
+1. Check that port 8787 is available
+2. Verify `.dev.vars` file exists with required environment variables
+3. Check `wrangler.jsonc` configuration is valid
+4. Look for errors in the global setup output
+
 ### Writing Tests
 
-- Add tests for new features or bug fixes
-- Follow existing test patterns in the `tests/` directory
-- Test both success and error cases
-- Use the test helpers in `tests/utils/test-helpers.js`
+When adding new features or fixing bugs, include tests:
 
-For comprehensive testing instructions, see [TESTING.md](TESTING.md).
+- **Use Jest's `expect()` API** for assertions
+- **Organize tests** with `describe()` blocks
+- **Use setup/teardown hooks**: `beforeEach()` and `afterEach()`
+- **Test both success and error cases**
+- **Use mock helpers** from `tests/utils/test-helpers.js`:
+  - `createMockEnv()` - Mock Cloudflare Worker environment
+  - `createMockD1()` - Mock D1 database
+  - `createMockKV()` - Mock KV namespace
+  - `createMockFetch()` - Mock fetch with hostname routing
+  - `createTelegramUpdate()` - Mock Telegram update payload
+
+### Test Organization
+
+- **Unit tests**: Test individual functions in isolation
+- **Integration tests**: Test complete user flows
+- **Property-based tests**: Use `fast-check` for testing properties across many inputs
+
+### Example Test
+
+```javascript
+import { createMockEnv } from '../utils/test-helpers.js';
+
+describe('MyFeature', () => {
+  let env;
+
+  beforeEach(() => {
+    env = createMockEnv();
+  });
+
+  test('should do something specific', () => {
+    const result = myFunction(env);
+    expect(result).toBe(expected);
+  });
+});
+```
+
+For comprehensive testing guidelines, see [.kiro/steering/testing.md](.kiro/steering/testing.md) and [TESTING.md](TESTING.md).
 
 ## Commit Guidelines
 

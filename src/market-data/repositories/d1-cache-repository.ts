@@ -17,7 +17,7 @@ export async function get<T>(db: D1Database, key: string): Promise<T | null> {
     const now = Date.now();
 
     const row = await db
-      .prepare('SELECT cache_value, CAST(expires_at AS INTEGER) as expires_at FROM cache WHERE cache_key = ?')
+      .prepare('SELECT cache_value, expires_at FROM cache WHERE cache_key = ?')
       .bind(key)
       .first<{ cache_value: string; expires_at: number }>();
 
@@ -25,17 +25,53 @@ export async function get<T>(db: D1Database, key: string): Promise<T | null> {
       return null;
     }
 
-    // Check if expired
-    if (row.expires_at < now) {
-      // Delete expired entry
+    // Validate expires_at is a valid number
+    const expiresAt = typeof row.expires_at === 'number' ? row.expires_at : parseInt(String(row.expires_at), 10);
+    if (isNaN(expiresAt)) {
+      console.warn(`Invalid expires_at value for cache key "${key}": ${row.expires_at}`);
+      // Delete invalid entry
       await db
         .prepare('DELETE FROM cache WHERE cache_key = ?')
         .bind(key)
-        .run();
+        .run()
+        .catch(() => {}); // Ignore deletion errors
       return null;
     }
 
-    return JSON.parse(row.cache_value) as T;
+    // Check if expired
+    if (expiresAt < now) {
+      // Delete expired entry (non-blocking)
+      db.prepare('DELETE FROM cache WHERE cache_key = ?')
+        .bind(key)
+        .run()
+        .catch(() => {}); // Ignore deletion errors
+      return null;
+    }
+
+    // Validate cache_value is valid JSON
+    if (!row.cache_value || typeof row.cache_value !== 'string') {
+      console.warn(`Invalid cache_value for cache key "${key}"`);
+      // Delete invalid entry
+      await db
+        .prepare('DELETE FROM cache WHERE cache_key = ?')
+        .bind(key)
+        .run()
+        .catch(() => {}); // Ignore deletion errors
+      return null;
+    }
+
+    try {
+      return JSON.parse(row.cache_value) as T;
+    } catch (parseError) {
+      console.error(`Failed to parse cache_value for key "${key}":`, parseError);
+      // Delete corrupted entry
+      await db
+        .prepare('DELETE FROM cache WHERE cache_key = ?')
+        .bind(key)
+        .run()
+        .catch(() => {}); // Ignore deletion errors
+      return null;
+    }
   } catch (error) {
     const d1Error = wrapD1Error('cache.get', error);
     logD1Error(d1Error);

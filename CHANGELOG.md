@@ -7,43 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## 2025-11-28
 
 ### Added
-- D1 database support with SQL repositories for all data operations (subscriptions, watchlists, executions, positions, cache)
+- Jest testing framework with automatic Wrangler dev server management
+- D1 database support with SQL repositories replacing KV storage for all data operations
 - SQL migration scripts with proper schema, indexes, and foreign key constraints
-- Comprehensive migration documentation in `MIGRATION.md`
-- D1 database binding in `wrangler.jsonc` configuration
-- Property-based tests using fast-check for D1 error handling, repositories, migration, validation, and query optimization
-- Test coverage for SQL injection prevention, constraint enforcement, transaction rollback, and migration completeness
+- Property-based tests using fast-check for D1 operations, migration, and validation
+- Comprehensive testing documentation (`.kiro/steering/testing.md`, updated `TESTING.md`, `README.md`, `CONTRIBUTING.md`)
 
 ### Changed
+- **Completed Jest migration**: All 18 test files migrated from custom TestRunner to Jest (171+ tests passing)
+- **Migrated from KV to D1**: All data storage now uses D1 database with SQL repositories
+- Tests now use Jest's `expect()` API and organized with `describe()` blocks
 - Reorganized codebase into feature-based modules: `core/`, `telegram/`, `user-management/`, `trading/`, `market-data/`, `scheduler/`
 - Improved architecture with clear separation of concerns (handlers → services → repositories)
-- Configuration: added D1 database binding to wrangler.jsonc for local development and production
-- Migration completed: KV data successfully migrated to D1 and marked as complete
-- Documentation updated to reflect D1-only architecture (removed all KV references)
-
-### Fixed
-- Test setup now properly mocks D1 database operations with in-memory storage for all tables (users, watchlists, executions, active_positions, cache)
-- Mock D1 implementation correctly maintains state across multiple operations within the same test
-- Removed KV namespace configuration from local wrangler config generation script
-- Refactored all test files to use D1 mock and service layer instead of direct KV access
-- Enhanced D1 mock to properly handle execution and position queries with string comparison for chat IDs
-- Fixed D1 mock to support both specific and wildcard queries for active positions
-- Fixed worker integration test path resolution to correctly locate PowerShell test script
-- Fixed mock D1 to handle CAST queries for subscription status checks, resolving duplicate subscription test failure
-- Fixed test assertions to handle chat IDs as strings (D1 storage format)
-- Fixed Telegram API mocks to properly compare chat IDs as strings
-- Fixed trading frequency limit test to use separate environments for different time periods
-- All 18 test suites now passing (171 total tests): subscription, watchlist, webhook handler, message service, scheduler, signal service, execution service, holidays, indicators, admin integration, webhook integration, D1 errors, repositories, migration, validation, query optimization
-- Comprehensive D1 mock supports INSERT, UPDATE, DELETE, and SELECT operations for all tables with proper foreign key relationships
-- D1 repositories now use SQL CAST() to properly convert numeric columns (execution_price, signal_price, execution_date, entry_price, subscription_status, expires_at) from strings to numbers, eliminating type mismatches between D1 return values and TypeScript types
-- Test helpers updated to provide mock D1 database instead of KV
 
 ### Removed
-- KV namespace binding and all KV-related code
-- KV repositories and dual-mode service logic
-- KV environment variables from deployment workflow and documentation
-- Migration endpoint and automatic migration logic (migration completed)
-- KV references from `.dev.vars.example`, `README.md`, `DEPLOYMENT.md`, `TESTING.md`, and `SECURITY.md`
+- Custom TestRunner class and assertion helpers
+- Legacy test runner script and `test:legacy` npm script
+- All KV-related code, repositories, and configuration
 
 ### Dependencies
 - Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`

@@ -4,10 +4,8 @@
 
 import { handleScheduled } from '../../../src/scheduler/handlers/scheduled-handler.js';
 import { sub } from '../../../src/user-management/services/subscription-service.js';
-import { TestRunner, createMockEnv, createMockFetch, assertEqual } from '../../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockFetch } from '../../utils/test-helpers.js';
 
-const runner = new TestRunner();
 
 // Helper to create mock market data response
 function createMockMarketData(currentPrice = 400, days = 200) {
@@ -52,8 +50,22 @@ function createMockMarketData(currentPrice = 400, days = 200) {
   };
 }
 
+describe('Scheduled Handler', () => {
+  let originalFetch;
+  let originalDate;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    originalDate = global.Date;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    global.Date = originalDate;
+  });
+
 // Test 1: Fetch Fear and Greed Index successfully
-runner.test('Fetch Fear and Greed Index successfully', async () => {
+test('Fetch Fear and Greed Index successfully', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -93,11 +105,11 @@ runner.test('Fetch Fear and Greed Index successfully', async () => {
   await handleScheduled(chatId, env);
 
   // Should send message to specific chat since rating is not fear/extreme fear
-  assertEqual(telegramCallCount, 1, 'Should send one Telegram message');
+  expect(telegramCallCount).toBe(1); // Should send one Telegram message
 });
 
 // Test 2: Send to all subscribers on fear rating
-runner.test('Send to all subscribers on fear rating', async () => {
+test('Send to all subscribers on fear rating', async () => {
   const env = createMockEnv();
 
   // Mock date to be a trading day (Tuesday, March 5, 2024)
@@ -156,14 +168,14 @@ runner.test('Send to all subscribers on fear rating', async () => {
     await handleScheduled(null, env);
 
     // Should send to all 3 subscribers
-    assertEqual(telegramCallCount, 3, 'Should send to all subscribers');
+    expect(telegramCallCount).toBe(3); // Should send to all subscribers
   } finally {
     global.Date = originalDate;
   }
 });
 
 // Test 3: Send to all subscribers on extreme fear rating
-runner.test('Send to all subscribers on extreme fear rating', async () => {
+test('Send to all subscribers on extreme fear rating', async () => {
   const env = createMockEnv();
 
   // Mock date to be a trading day (Wednesday, March 6, 2024)
@@ -219,14 +231,14 @@ runner.test('Send to all subscribers on extreme fear rating', async () => {
   try {
     await handleScheduled(null, env);
 
-    assertEqual(telegramCallCount, 2, 'Should send to all subscribers');
+    expect(telegramCallCount).toBe(2); // Should send to all subscribers
   } finally {
     global.Date = originalDate;
   }
 });
 
 // Test 4: Handle API errors gracefully
-runner.test('Handle API errors gracefully', async () => {
+test('Handle API errors gracefully', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -263,15 +275,15 @@ runner.test('Handle API errors gracefully', async () => {
   await handleScheduled(chatId, env);
 
   // Should notify admin about the error
-  assertEqual(adminCallCount, 1, 'Should notify admin about error');
+  expect(adminCallCount).toBe(1); // Should notify admin about error
   // Should still send HOLD signal to user even when Fear & Greed Index fails
-  assertEqual(userCallCount, 1, 'Should send signal to user even on error');
-  assert(capturedUserMessage.includes('HOLD'), 'Should send HOLD signal');
-  assert(capturedUserMessage.includes('Data Unavailable'), 'Should indicate data unavailable');
+  expect(userCallCount).toBe(1); // Should send signal to user even on error
+  expect(capturedUserMessage.includes('HOLD')).toBeTruthy(); // Should send HOLD signal
+  expect(capturedUserMessage.includes('Data Unavailable')).toBeTruthy(); // Should indicate data unavailable
 });
 
 // Test 5: Don't send when rating is not fear/extreme fear and no specific chat
-runner.test('Don\'t send when rating is neutral and no specific chat', async () => {
+test('Don\'t send when rating is neutral and no specific chat', async () => {
   const env = createMockEnv();
 
   let telegramCallCount = 0;
@@ -310,11 +322,11 @@ runner.test('Don\'t send when rating is neutral and no specific chat', async () 
   await handleScheduled(null, env);
 
   // Should not send when rating is not fear/extreme fear and no specific chat
-  assertEqual(telegramCallCount, 0, 'Should not send messages when rating is not fear and no specific chat');
+  expect(telegramCallCount).toBe(0); // Should not send messages when rating is not fear and no specific chat
 });
 
 // Test 6: Verify message format includes chart URL
-runner.test('Verify message format includes chart URL', async () => {
+test('Verify message format includes chart URL', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -360,24 +372,24 @@ runner.test('Verify message format includes chart URL', async () => {
 
   // With watchlist, multiple messages may be sent (one per ticker)
   // Verify at least one message contains the chart URL
-  assert(capturedMessages.length > 0, 'At least one message should be sent');
+  expect(capturedMessages.length > 0).toBeTruthy(); // At least one message should be sent
 
   const messageWithChart = capturedMessages.find(msg => {
     const urlMatch = msg.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
     return urlMatch && new URL(urlMatch[1]).hostname === 'quickchart.io';
   });
 
-  assert(messageWithChart, 'At least one message should contain a chart URL from quickchart.io');
+  expect(messageWithChart).toBeTruthy(); // At least one message should contain a chart URL from quickchart.io
 
   // Verify message content
-  assert(messageWithChart.includes('25.00%'), 'Message should include score');
-  assert(messageWithChart.includes('FEAR'), 'Message should include rating');
+  expect(messageWithChart.includes('25.00%')).toBeTruthy(); // Message should include score
+  expect(messageWithChart.includes('FEAR')).toBeTruthy(); // Message should include rating
   // Verify that trading signal is always included
-  assert(messageWithChart.includes('Trading Signal'), 'Message should always include trading signal');
+  expect(messageWithChart.includes('Trading Signal')).toBeTruthy(); // Message should always include trading signal
 });
 
 // Test 7: Verify signal is always sent when market data fails
-runner.test('Verify signal is always sent when market data fails', async () => {
+test('Verify signal is always sent when market data fails', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -418,14 +430,14 @@ runner.test('Verify signal is always sent when market data fails', async () => {
   await handleScheduled(chatId, env);
 
   // Should send message with trading signal even when market data fails
-  assert(capturedMessage !== null, 'Should send message to user');
-  assert(capturedMessage.includes('Trading Signal'), 'Message should include trading signal');
-  assert(capturedMessage.includes('HOLD'), 'Should send HOLD signal when data unavailable');
-  assert(capturedMessage.includes('Data Unavailable') || capturedMessage.includes('Insufficient data'), 'Should indicate data unavailable');
+  expect(capturedMessage !== null).toBeTruthy(); // Should send message to user
+  expect(capturedMessage.includes('Trading Signal')).toBeTruthy(); // Message should include trading signal
+  expect(capturedMessage.includes('HOLD')).toBeTruthy(); // Should send HOLD signal when data unavailable
+  expect(capturedMessage.includes('Data Unavailable') || capturedMessage.includes('Insufficient data')).toBeTruthy(); // Should indicate data unavailable
 });
 
 // Test 8: Verify signal is always sent for /now command even when conditions not met
-runner.test('Verify signal is always sent for /now command', async () => {
+test('Verify signal is always sent for /now command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -468,10 +480,10 @@ runner.test('Verify signal is always sent for /now command', async () => {
   await handleScheduled(chatId, env);
 
   // Should send trading signal even when rating is not fear/extreme fear
-  assert(capturedMessage !== null, 'Should send message to user');
-  assert(capturedMessage.includes('Trading Signal'), 'Message should always include trading signal');
-  assert(capturedMessage.includes('HOLD') || capturedMessage.includes('BUY') || capturedMessage.includes('SELL'), 'Should include a valid signal type');
+  expect(capturedMessage !== null).toBeTruthy(); // Should send message to user
+  expect(capturedMessage.includes('Trading Signal')).toBeTruthy(); // Message should always include trading signal
+  expect(capturedMessage.includes('HOLD') || capturedMessage.includes('BUY') || capturedMessage.includes('SELL')).toBeTruthy(); // Should include a valid signal type
 });
 
-// Run tests
-runner.run().catch(console.error);
+
+});

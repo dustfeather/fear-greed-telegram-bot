@@ -2,11 +2,9 @@
  * Data Validation Property Tests
  */
 
-import { TestRunner, createMockEnv, createMockKV, createMockD1 } from '../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockKV, createMockD1 } from '../utils/test-helpers.js';
 import fc from 'fast-check';
 
-const runner = new TestRunner();
 
 /**
  * **Feature: kv-to-d1-migration, Property 13: Chat ID migration validation**
@@ -14,7 +12,7 @@ const runner = new TestRunner();
  *
  * All chat IDs from KV should exist in D1 after migration.
  */
-runner.test('Property 13: Chat ID migration validation', async () => {
+test('Property 13: Chat ID migration validation', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(fc.integer({ min: 100000000, max: 999999999 }), { minLength: 1, maxLength: 20 }),
@@ -26,11 +24,11 @@ runner.test('Property 13: Chat ID migration validation', async () => {
 
         // Validation: all KV IDs should be in D1
         for (const kvId of uniqueKvIds) {
-          assert(d1ChatIds.includes(kvId), `Chat ID ${kvId} from KV should exist in D1`);
+          expect(d1ChatIds.includes(kvId)).toBe(true); // Chat ID from KV should exist in D1
         }
 
         // Validation: counts should match
-        assert(d1ChatIds.length === uniqueKvIds.length, 'Chat ID counts should match');
+        expect(d1ChatIds.length === uniqueKvIds.length).toBeTruthy(); // Chat ID counts should match
 
         return true;
       }
@@ -38,7 +36,7 @@ runner.test('Property 13: Chat ID migration validation', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -47,7 +45,7 @@ runner.test('Property 13: Chat ID migration validation', async () => {
  *
  * The number of watchlist entries in D1 should match KV after migration.
  */
-runner.test('Property 14: Watchlist count validation', async () => {
+test('Property 14: Watchlist count validation', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -70,7 +68,7 @@ runner.test('Property 14: Watchlist count validation', async () => {
         // Validation: counts should match for each chat ID
         for (const [chatId, kvCount] of kvCounts) {
           const d1Count = d1Counts.get(chatId) || 0;
-          assert(d1Count === kvCount, `Watchlist count for chat ID ${chatId} should match (KV: ${kvCount}, D1: ${d1Count})`);
+          expect(d1Count).toBe(kvCount); // Watchlist count should match
         }
 
         return true;
@@ -79,7 +77,7 @@ runner.test('Property 14: Watchlist count validation', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -88,7 +86,7 @@ runner.test('Property 14: Watchlist count validation', async () => {
  *
  * The number of execution history records in D1 should match KV after migration.
  */
-runner.test('Property 15: Execution count validation', async () => {
+test('Property 15: Execution count validation', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -111,13 +109,13 @@ runner.test('Property 15: Execution count validation', async () => {
         // Validation: counts should match for each chat ID
         for (const [chatId, kvCount] of kvCounts) {
           const d1Count = d1Counts.get(chatId) || 0;
-          assert(d1Count === kvCount, `Execution count for chat ID ${chatId} should match (KV: ${kvCount}, D1: ${d1Count})`);
+          expect(d1Count).toBe(kvCount); // Execution count should match
         }
 
         // Validation: total counts should match
         const kvTotal = Array.from(kvCounts.values()).reduce((sum, count) => sum + count, 0);
         const d1Total = Array.from(d1Counts.values()).reduce((sum, count) => sum + count, 0);
-        assert(d1Total === kvTotal, `Total execution counts should match (KV: ${kvTotal}, D1: ${d1Total})`);
+        expect(d1Total).toBe(kvTotal); // Total execution counts should match
 
         return true;
       }
@@ -125,7 +123,7 @@ runner.test('Property 15: Execution count validation', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -134,7 +132,7 @@ runner.test('Property 15: Execution count validation', async () => {
  *
  * The number of active position records in D1 should match KV after migration.
  */
-runner.test('Property 16: Active position count validation', async () => {
+test('Property 16: Active position count validation', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -155,7 +153,7 @@ runner.test('Property 16: Active position count validation', async () => {
         const d1Count = kvCount;
 
         // Validation: counts should match
-        assert(d1Count === kvCount, `Active position counts should match (KV: ${kvCount}, D1: ${d1Count})`);
+        expect(d1Count).toBe(kvCount); // Active position counts should match
 
         // Validation: each chat ID should have at most one position
         const chatIdCounts = new Map();
@@ -164,7 +162,7 @@ runner.test('Property 16: Active position count validation', async () => {
         }
 
         for (const [chatId, count] of chatIdCounts) {
-          assert(count >= 1, `Chat ID ${chatId} should have at least one position if marked as having position`);
+          expect(count).toBeGreaterThanOrEqual(1); // Chat ID should have at least one position
         }
 
         return true;
@@ -173,7 +171,7 @@ runner.test('Property 16: Active position count validation', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -182,7 +180,7 @@ runner.test('Property 16: Active position count validation', async () => {
  *
  * Cache entries in D1 should match KV after migration, with valid TTL values.
  */
-runner.test('Property 17: Cache entry validation', async () => {
+test('Property 17: Cache entry validation', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.array(
@@ -205,15 +203,15 @@ runner.test('Property 17: Cache entry validation', async () => {
 
         // Validation: all KV keys should be in D1
         for (const key of kvEntries.keys()) {
-          assert(d1Entries.has(key), `Cache key ${key} from KV should exist in D1`);
+          expect(d1Entries.has(key)).toBe(true); // Cache key from KV should exist in D1
         }
 
         // Validation: counts should match
-        assert(d1Entries.size === kvEntries.size, 'Cache entry counts should match');
+        expect(d1Entries.size === kvEntries.size).toBeTruthy(); // Cache entry counts should match
 
         // Validation: TTL values should be positive
         for (const entry of d1Entries.values()) {
-          assert(entry.ttl > 0, 'TTL values should be positive');
+          expect(entry.ttl > 0).toBeTruthy(); // TTL values should be positive
         }
 
         return true;
@@ -222,7 +220,7 @@ runner.test('Property 17: Cache entry validation', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -231,7 +229,7 @@ runner.test('Property 17: Cache entry validation', async () => {
  *
  * Validation reports should include all discrepancies and provide actionable information.
  */
-runner.test('Property 18: Validation report completeness', async () => {
+test('Property 18: Validation report completeness', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.record({
@@ -266,15 +264,15 @@ runner.test('Property 18: Validation report completeness', async () => {
         };
 
         // Validation: report should include all categories
-        assert(report.chatIds, 'Report should include chat IDs');
-        assert(report.watchlists, 'Report should include watchlists');
-        assert(report.executions, 'Report should include executions');
-        assert(report.positions, 'Report should include positions');
+        expect(report.chatIds).toBeTruthy(); // Report should include chat IDs
+        expect(report.watchlists).toBeTruthy(); // Report should include watchlists
+        expect(report.executions).toBeTruthy(); // Report should include executions
+        expect(report.positions).toBeTruthy(); // Report should include positions
 
         // Validation: each category should have counts
-        assert(typeof report.chatIds.kvCount === 'number', 'Should have KV count');
-        assert(typeof report.chatIds.d1Count === 'number', 'Should have D1 count');
-        assert(typeof report.chatIds.discrepancies === 'number', 'Should have discrepancy count');
+        expect(typeof report.chatIds.kvCount === 'number').toBeTruthy(); // Should have KV count
+        expect(typeof report.chatIds.d1Count === 'number').toBeTruthy(); // Should have D1 count
+        expect(typeof report.chatIds.discrepancies === 'number').toBeTruthy(); // Should have discrepancy count
 
         // Validation: discrepancies should be calculated correctly
         const totalDiscrepancies =
@@ -289,7 +287,7 @@ runner.test('Property 18: Validation report completeness', async () => {
           report.executions.discrepancies +
           report.positions.discrepancies;
 
-        assert(reportedDiscrepancies === totalDiscrepancies, 'Discrepancy counts should match');
+        expect(reportedDiscrepancies === totalDiscrepancies).toBeTruthy(); // Discrepancy counts should match
 
         return true;
       }
@@ -297,8 +295,7 @@ runner.test('Property 18: Validation report completeness', async () => {
     { numRuns: 100 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
-// Run tests
-runner.run().catch(console.error);
+// Empty describe block removed - no additional tests needed

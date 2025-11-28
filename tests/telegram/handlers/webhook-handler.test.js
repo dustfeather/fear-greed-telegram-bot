@@ -5,10 +5,19 @@
 import index from '../../../src/index.js';
 import { sub } from '../../../src/user-management/services/subscription-service.js';
 import { recordExecution } from '../../../src/trading/services/execution-service.js';
-import { TestRunner, createMockEnv, createMockFetch, createTelegramUpdate, assertEqual } from '../../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv, createMockFetch, createTelegramUpdate } from '../../utils/test-helpers.js';
 
-const runner = new TestRunner();
+
+describe('Webhook Handler', () => {
+  let originalFetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
 // Helper to create mock market data response
 function createMockMarketData(currentPrice = 400, days = 200) {
@@ -54,7 +63,7 @@ function createMockMarketData(currentPrice = 400, days = 200) {
 }
 
 // Test 1: /start command
-runner.test('/start command', async () => {
+test('/start command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/start', chatId);
@@ -85,17 +94,17 @@ runner.test('/start command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assertEqual(telegramCallCount, 1, 'Should send subscription confirmation message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount).toBe(1); // Should send subscription confirmation message
 
   // Verify user is subscribed (check D1)
   const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assert(chatIds.results.some(row => row.chat_id === String(chatId)), 'User should be subscribed');
+  expect(chatIds.results.some(row => row.chat_id === String(chatId))).toBeTruthy(); // User should be subscribed
 });
 
 // Test 2: /stop command
-runner.test('/stop command', async () => {
+test('/stop command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -130,17 +139,17 @@ runner.test('/stop command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assertEqual(telegramCallCount, 1, 'Should send unsubscription confirmation message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount).toBe(1); // Should send unsubscription confirmation message
 
   // Verify user is unsubscribed (check D1)
   const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
-  assert(!chatIds.results.some(row => row.chat_id === String(chatId)), 'User should be unsubscribed');
+  expect(!chatIds.results.some(row => row.chat_id === String(chatId))).toBeTruthy(); // User should be unsubscribed
 });
 
 // Test 3: /help command
-runner.test('/help command', async () => {
+test('/help command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/help', chatId);
@@ -174,17 +183,17 @@ runner.test('/help command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assertEqual(telegramCallCount, 1, 'Should send help message');
-  assert(helpMessage.includes('/start'), 'Help message should include /start');
-  assert(helpMessage.includes('/stop'), 'Help message should include /stop');
-  assert(helpMessage.includes('/now'), 'Help message should include /now');
-  assert(helpMessage.includes('/help'), 'Help message should include /help');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount).toBe(1); // Should send help message
+  expect(helpMessage.includes('/start')).toBeTruthy(); // Help message should include /start
+  expect(helpMessage.includes('/stop')).toBeTruthy(); // Help message should include /stop
+  expect(helpMessage.includes('/now')).toBeTruthy(); // Help message should include /now
+  expect(helpMessage.includes('/help')).toBeTruthy(); // Help message should include /help
 });
 
 // Test 4: /now command
-runner.test('/now command', async () => {
+test('/now command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/now', chatId);
@@ -234,13 +243,13 @@ runner.test('/now command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount >= 1, 'Should send Fear & Greed Index message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount >= 1).toBeTruthy(); // Should send Fear & Greed Index message
 });
 
 // Test 4b: /now command with ticker parameter
-runner.test('/now command with ticker parameter', async () => {
+test('/now command with ticker parameter', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/now AAPL', chatId);
@@ -290,13 +299,13 @@ runner.test('/now command with ticker parameter', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount >= 1, 'Should send Fear & Greed Index message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount >= 1).toBeTruthy(); // Should send Fear & Greed Index message
 });
 
 // Test 4c: /now command with invalid ticker
-runner.test('/now command with invalid ticker', async () => {
+test('/now command with invalid ticker', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/now INVALID-TICKER!', chatId);
@@ -327,13 +336,13 @@ runner.test('/now command with invalid ticker', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send error message for invalid ticker');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send error message for invalid ticker
 });
 
 // Test 4d: /execute command
-runner.test('/execute command', async () => {
+test('/execute command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/execute SPY 400.50', chatId);
@@ -364,20 +373,20 @@ runner.test('/execute command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send execution confirmation message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send execution confirmation message
 
   // Verify execution was recorded in D1
   const executions = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
-  assert(executions.results.length === 1, 'Should have one execution');
-  assert(executions.results[0].ticker === 'SPY', 'Should have correct ticker');
-  assert(executions.results[0].execution_price === 400.50, 'Should have correct price');
-  assert(executions.results[0].signal_type === 'BUY', 'Should be BUY (no active position)');
+  expect(executions.results.length === 1).toBeTruthy(); // Should have one execution
+  expect(executions.results[0].ticker === 'SPY').toBeTruthy(); // Should have correct ticker
+  expect(executions.results[0].execution_price === 400.50).toBeTruthy(); // Should have correct price
+  expect(executions.results[0].signal_type === 'BUY').toBeTruthy(); // Should be BUY (no active position)
 });
 
 // Test 4e: /execute command with invalid format
-runner.test('/execute command with invalid format', async () => {
+test('/execute command with invalid format', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/execute SPY', chatId);
@@ -408,13 +417,13 @@ runner.test('/execute command with invalid format', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send error message for invalid format');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send error message for invalid format
 });
 
 // Test 4f: /execute command with valid date parameter
-runner.test('/execute command with valid date parameter', async () => {
+test('/execute command with valid date parameter', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/execute SPY 400.50 2024-01-15', chatId);
@@ -445,27 +454,27 @@ runner.test('/execute command with valid date parameter', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send execution confirmation message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send execution confirmation message
 
   // Verify execution was recorded with correct date in D1
   const executions = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
-  assert(executions.results.length === 1, 'Should have one execution');
-  assert(executions.results[0].ticker === 'SPY', 'Should have correct ticker');
-  assert(executions.results[0].execution_price === 400.50, 'Should have correct price');
+  expect(executions.results.length === 1).toBeTruthy(); // Should have one execution
+  expect(executions.results[0].ticker === 'SPY').toBeTruthy(); // Should have correct ticker
+  expect(executions.results[0].execution_price === 400.50).toBeTruthy(); // Should have correct price
 
   // Verify the date is correct (2024-01-15, start of day UTC)
   const executionDate = new Date(executions.results[0].execution_date);
-  assert(executionDate.getUTCFullYear() === 2024, 'Should have correct year');
-  assert(executionDate.getUTCMonth() === 0, 'Should have correct month (January = 0)');
-  assert(executionDate.getUTCDate() === 15, 'Should have correct day');
-  assert(executionDate.getUTCHours() === 0, 'Should be start of day (0 hours)');
-  assert(executionDate.getUTCMinutes() === 0, 'Should be start of day (0 minutes)');
+  expect(executionDate.getUTCFullYear() === 2024).toBeTruthy(); // Should have correct year
+  expect(executionDate.getUTCMonth() === 0).toBeTruthy(); // Should have correct month (January = 0)
+  expect(executionDate.getUTCDate() === 15).toBeTruthy(); // Should have correct day
+  expect(executionDate.getUTCHours() === 0).toBeTruthy(); // Should be start of day (0 hours)
+  expect(executionDate.getUTCMinutes() === 0).toBeTruthy(); // Should be start of day (0 minutes)
 });
 
 // Test 4g: /execute command with invalid date format
-runner.test('/execute command with invalid date format', async () => {
+test('/execute command with invalid date format', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/execute SPY 400.50 2024/01/15', chatId);
@@ -496,17 +505,17 @@ runner.test('/execute command with invalid date format', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send error message for invalid date format');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send error message for invalid date format
 
   // Verify execution was NOT recorded in D1
   const executions1 = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
-  assert(executions1.results.length === 0, 'Should not have execution history');
+  expect(executions1.results.length === 0).toBeTruthy(); // Should not have execution history
 });
 
 // Test 4h: /execute command with invalid date (e.g., Feb 30)
-runner.test('/execute command with invalid date', async () => {
+test('/execute command with invalid date', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/execute SPY 400.50 2024-02-30', chatId);
@@ -537,17 +546,17 @@ runner.test('/execute command with invalid date', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send error message for invalid date');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send error message for invalid date
 
   // Verify execution was NOT recorded in D1
   const executions2 = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
-  assert(executions2.results.length === 0, 'Should not have execution history');
+  expect(executions2.results.length === 0).toBeTruthy(); // Should not have execution history
 });
 
 // Test 4i: /executions command
-runner.test('/executions command', async () => {
+test('/executions command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
@@ -582,13 +591,13 @@ runner.test('/executions command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true');
-  assert(telegramCallCount === 1, 'Should send execution history message');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true
+  expect(telegramCallCount === 1).toBeTruthy(); // Should send execution history message
 });
 
 // Test 5: Unknown command
-runner.test('Unknown command', async () => {
+test('Unknown command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
   const update = createTelegramUpdate('/unknown', chatId);
@@ -605,12 +614,12 @@ runner.test('Unknown command', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should still be 200');
-  assertEqual(result.ok, true, 'Should return ok: true for unknown commands');
+  expect(response.status).toBe(200); // Response should still be 200
+  expect(result.ok).toBe(true); // Should return ok: true for unknown commands
 });
 
 // Test 6: Invalid payload (no message)
-runner.test('Invalid payload (no message)', async () => {
+test('Invalid payload (no message)', async () => {
   const env = createMockEnv();
   const update = { invalid: 'payload' };
 
@@ -626,12 +635,12 @@ runner.test('Invalid payload (no message)', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true for updates without text');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true for updates without text
 });
 
 // Test 6b: Invalid payload structure (missing chat)
-runner.test('Invalid payload structure (missing chat)', async () => {
+test('Invalid payload structure (missing chat)', async () => {
   const env = createMockEnv();
   const update = {
     message: {
@@ -654,12 +663,12 @@ runner.test('Invalid payload structure (missing chat)', async () => {
   const result = await response.json();
 
   // Return 200 to acknowledge webhook request (Telegram best practice)
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.ok, true, 'Should return ok: true to acknowledge webhook');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.ok).toBe(true); // Should return ok: true to acknowledge webhook
 });
 
 // Test 6c: Invalid JSON payload
-runner.test('Invalid JSON payload', async () => {
+test('Invalid JSON payload', async () => {
   const env = createMockEnv();
 
   const request = new Request('http://localhost:8787', {
@@ -674,13 +683,13 @@ runner.test('Invalid JSON payload', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 400, 'Response should be 400');
-  assertEqual(result.ok, false, 'Should return ok: false');
-  assert(result.error.includes('Invalid JSON'), 'Should indicate invalid JSON');
+  expect(response.status).toBe(400); // Response should be 400
+  expect(result.ok).toBe(false); // Should return ok: false
+  expect(result.error.includes('Invalid JSON')).toBeTruthy(); // Should indicate invalid JSON
 });
 
 // Test 6d: Webhook secret verification failure (missing header)
-runner.test('Webhook secret verification failure (missing header)', async () => {
+test('Webhook secret verification failure (missing header)', async () => {
   const env = createMockEnv();
   const update = createTelegramUpdate('/start', 123456789);
 
@@ -696,13 +705,13 @@ runner.test('Webhook secret verification failure (missing header)', async () => 
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 401, 'Response should be 401');
-  assertEqual(result.ok, false, 'Should return ok: false');
-  assertEqual(result.error, 'Unauthorized', 'Should indicate unauthorized');
+  expect(response.status).toBe(401); // Response should be 401
+  expect(result.ok).toBe(false); // Should return ok: false
+  expect(result.error).toBe('Unauthorized'); // Should indicate unauthorized
 });
 
 // Test 6e: Webhook secret verification failure (wrong secret)
-runner.test('Webhook secret verification failure (wrong secret)', async () => {
+test('Webhook secret verification failure (wrong secret)', async () => {
   const env = createMockEnv();
   const update = createTelegramUpdate('/start', 123456789);
 
@@ -718,13 +727,13 @@ runner.test('Webhook secret verification failure (wrong secret)', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 401, 'Response should be 401');
-  assertEqual(result.ok, false, 'Should return ok: false');
-  assertEqual(result.error, 'Unauthorized', 'Should indicate unauthorized');
+  expect(response.status).toBe(401); // Response should be 401
+  expect(result.ok).toBe(false); // Should return ok: false
+  expect(result.error).toBe('Unauthorized'); // Should indicate unauthorized
 });
 
 // Test 7: GET request (should return 405)
-runner.test('GET request (Method not allowed)', async () => {
+test('GET request (Method not allowed)', async () => {
   const env = createMockEnv();
 
   const request = new Request('http://localhost:8787', {
@@ -734,12 +743,12 @@ runner.test('GET request (Method not allowed)', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const text = await response.text();
 
-  assertEqual(response.status, 405, 'Response should be 405');
-  assertEqual(text, 'Method not allowed', 'Should return method not allowed message');
+  expect(response.status).toBe(405); // Response should be 405
+  expect(text).toBe('Method not allowed'); // Should return method not allowed message
 });
 
 // Test 8: Scheduled handler on weekday
-runner.test('Scheduled handler executes on weekday', async () => {
+test('Scheduled handler executes on weekday', async () => {
   const env = createMockEnv();
   let scheduledExecuted = false;
 
@@ -806,7 +815,7 @@ runner.test('Scheduled handler executes on weekday', async () => {
     // Give it a moment to execute
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    assert(scheduledExecuted, 'Scheduled handler should execute on weekday');
+    expect(scheduledExecuted).toBeTruthy(); // Scheduled handler should execute on weekday
   } finally {
     // Restore original Date
     global.Date = originalDate;
@@ -814,7 +823,7 @@ runner.test('Scheduled handler executes on weekday', async () => {
 });
 
 // Test 8b: Scheduled handler skips on weekend
-runner.test('Scheduled handler skips on weekend', async () => {
+test('Scheduled handler skips on weekend', async () => {
   const env = createMockEnv();
   let scheduledExecuted = false;
 
@@ -881,7 +890,7 @@ runner.test('Scheduled handler skips on weekend', async () => {
     // Give it a moment - should not execute
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    assert(!scheduledExecuted, 'Scheduled handler should NOT execute on weekend');
+    expect(!scheduledExecuted).toBeTruthy(); // Scheduled handler should NOT execute on weekend
   } finally {
     // Restore original Date
     global.Date = originalDate;
@@ -889,7 +898,7 @@ runner.test('Scheduled handler skips on weekend', async () => {
 });
 
 // Test 9: /deploy-notify endpoint with valid token (Authorization header)
-runner.test('/deploy-notify endpoint with valid token (Authorization header)', async () => {
+test('/deploy-notify endpoint with valid token (Authorization header)', async () => {
   const env = createMockEnv();
   const chatIds = [111111111, 222222222];
 
@@ -930,15 +939,15 @@ runner.test('/deploy-notify endpoint with valid token (Authorization header)', a
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.success, true, 'Should succeed');
-  assertEqual(result.broadcast.totalSubscribers, 2, 'Should have 2 subscribers');
-  assertEqual(result.broadcast.successful, 2, 'Should send to 2 subscribers');
-  assertEqual(telegramCallCount, 2, 'Should send 2 Telegram messages');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.success).toBe(true); // Should succeed
+  expect(result.broadcast.totalSubscribers).toBe(2); // Should have 2 subscribers
+  expect(result.broadcast.successful).toBe(2); // Should send to 2 subscribers
+  expect(telegramCallCount).toBe(2); // Should send 2 Telegram messages
 });
 
 // Test 10: /deploy-notify endpoint with valid token (body)
-runner.test('/deploy-notify endpoint with valid token (body)', async () => {
+test('/deploy-notify endpoint with valid token (body)', async () => {
   const env = createMockEnv();
   const chatIds = [111111111];
 
@@ -976,14 +985,14 @@ runner.test('/deploy-notify endpoint with valid token (body)', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.success, true, 'Should succeed');
-  assertEqual(result.broadcast.totalSubscribers, 1, 'Should have 1 subscriber');
-  assertEqual(result.broadcast.successful, 1, 'Should send to 1 subscriber');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.success).toBe(true); // Should succeed
+  expect(result.broadcast.totalSubscribers).toBe(1); // Should have 1 subscriber
+  expect(result.broadcast.successful).toBe(1); // Should send to 1 subscriber
 });
 
 // Test 11: /deploy-notify endpoint with invalid token
-runner.test('/deploy-notify endpoint with invalid token', async () => {
+test('/deploy-notify endpoint with invalid token', async () => {
   const env = createMockEnv();
 
   const request = new Request('http://localhost:8787/deploy-notify', {
@@ -1002,13 +1011,13 @@ runner.test('/deploy-notify endpoint with invalid token', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 401, 'Response should be 401');
-  assertEqual(result.ok, false, 'Should fail');
-  assertEqual(result.error, 'Invalid token', 'Should indicate invalid token');
+  expect(response.status).toBe(401); // Response should be 401
+  expect(result.ok).toBe(false); // Should fail
+  expect(result.error).toBe('Invalid token'); // Should indicate invalid token
 });
 
 // Test 12: /deploy-notify endpoint missing required fields
-runner.test('/deploy-notify endpoint missing required fields', async () => {
+test('/deploy-notify endpoint missing required fields', async () => {
   const env = createMockEnv();
 
   const request = new Request('http://localhost:8787/deploy-notify', {
@@ -1026,13 +1035,13 @@ runner.test('/deploy-notify endpoint missing required fields', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 400, 'Response should be 400');
-  assertEqual(result.ok, false, 'Should fail');
-  assert(result.error.includes('Missing required fields'), 'Should indicate missing fields');
+  expect(response.status).toBe(400); // Response should be 400
+  expect(result.ok).toBe(false); // Should fail
+  expect(result.error.includes('Missing required fields')).toBeTruthy(); // Should indicate missing fields
 });
 
 // Test 13: /deploy-notify endpoint verifies message format
-runner.test('/deploy-notify endpoint verifies message format', async () => {
+test('/deploy-notify endpoint verifies message format', async () => {
   const env = createMockEnv();
   const chatIds = [111111111];
 
@@ -1070,26 +1079,26 @@ runner.test('/deploy-notify endpoint verifies message format', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assert(capturedMessage.includes('🚀 New version deployed!'), 'Message should include deployment emoji');
-  assert(capturedMessage.includes('abc1234'), 'Message should include commit hash');
-  assert(capturedMessage.includes('Test commit'), 'Message should include first line of commit message');
-  assert(!capturedMessage.includes('With multiple lines'), 'Message should only include first line');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(capturedMessage.includes('🚀 New version deployed!')).toBeTruthy(); // Message should include deployment emoji
+  expect(capturedMessage.includes('abc1234')).toBeTruthy(); // Message should include commit hash
+  expect(capturedMessage.includes('Test commit')).toBeTruthy(); // Message should include first line of commit message
+  expect(!capturedMessage.includes('With multiple lines')).toBeTruthy(); // Message should only include first line
 
   // Securely verify commit URL by parsing and checking hostname exactly
   // Extract URL from Markdown format: [text](URL)
   const urlMatch = capturedMessage.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
-  assert(urlMatch, 'Message should contain a URL in Markdown format');
+  expect(urlMatch).toBeTruthy(); // Message should contain a URL in Markdown format
   const commitUrl = urlMatch[1];
   const urlObj = new URL(commitUrl);
   // Verify hostname exactly matches (prevents substring vulnerabilities)
-  assert.equal(urlObj.hostname, 'github.com', 'Commit URL hostname should be github.com');
+  expect(urlObj.hostname).toBe('github.com'); // Commit URL hostname should be github.com
   // Verify the full URL matches expected format
-  assert.equal(commitUrl, 'https://github.com/owner/repo/commit/abc1234567890', 'Commit URL should match expected value');
+  expect(commitUrl).toBe('https://github.com/owner/repo/commit/abc1234567890'); // Commit URL should match expected value
 });
 
 // Test 14: /deploy-notify endpoint with no subscribers
-runner.test('/deploy-notify endpoint with no subscribers', async () => {
+test('/deploy-notify endpoint with no subscribers', async () => {
   const env = createMockEnv();
 
   // No subscribers by default (empty D1 database)
@@ -1110,14 +1119,14 @@ runner.test('/deploy-notify endpoint with no subscribers', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const result = await response.json();
 
-  assertEqual(response.status, 200, 'Response should be 200');
-  assertEqual(result.success, true, 'Should succeed');
-  assertEqual(result.broadcast.totalSubscribers, 0, 'Should have 0 subscribers');
-  assertEqual(result.broadcast.successful, 0, 'Should have 0 successful sends');
+  expect(response.status).toBe(200); // Response should be 200
+  expect(result.success).toBe(true); // Should succeed
+  expect(result.broadcast.totalSubscribers).toBe(0); // Should have 0 subscribers
+  expect(result.broadcast.successful).toBe(0); // Should have 0 successful sends
 });
 
 // Test 15: /deploy-notify endpoint with GET method (should fail)
-runner.test('/deploy-notify endpoint with GET method', async () => {
+test('/deploy-notify endpoint with GET method', async () => {
   const env = createMockEnv();
 
   const request = new Request('http://localhost:8787/deploy-notify', {
@@ -1127,9 +1136,9 @@ runner.test('/deploy-notify endpoint with GET method', async () => {
   const response = await index.fetch(request, env, { waitUntil: () => {} });
   const text = await response.text();
 
-  assertEqual(response.status, 405, 'Response should be 405');
-  assertEqual(text, 'Method not allowed', 'Should return method not allowed');
+  expect(response.status).toBe(405); // Response should be 405
+  expect(text).toBe('Method not allowed'); // Should return method not allowed
 });
 
-// Run tests
-runner.run().catch(console.error);
+
+});

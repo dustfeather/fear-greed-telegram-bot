@@ -1,8 +1,6 @@
 /**
- * Test utilities and mocks for e2e testing
+ * Test utilities and mocks for Jest testing
  */
-
-import assert from 'node:assert';
 
 /**
  * Create a mock KV namespace for testing
@@ -452,88 +450,7 @@ export function createMockEnv(overrides = {}) {
   };
 }
 
-/**
- * Test runner utility
- */
-export class TestRunner {
-  constructor() {
-    this.tests = [];
-    this.passed = 0;
-    this.failed = 0;
-  }
 
-  test(name, fn) {
-    this.tests.push({ name, fn });
-  }
-
-  async run() {
-    console.log('\n🧪 Running E2E Test Suite\n');
-    console.log('═'.repeat(60));
-
-    for (const { name, fn } of this.tests) {
-      try {
-        await fn();
-        console.log(`✅ ${name}`);
-        this.passed++;
-      } catch (error) {
-        console.error(`❌ ${name}`);
-        console.error(`   ${error.message}`);
-        if (error.stack) {
-          console.error(`   ${error.stack.split('\n')[1]?.trim()}`);
-        }
-
-        // Explicitly fail if mock response is missing (indicates test setup issue)
-        if (error.message && error.message.includes('No mock response for URL')) {
-          console.error(`   ⚠️  TEST SETUP ERROR: Missing mock response. This test must fail.`);
-        }
-
-        this.failed++;
-      }
-    }
-
-    console.log('\n' + '═'.repeat(60));
-    console.log(`\n📊 Test Results: ${this.passed} passed, ${this.failed} failed`);
-
-    if (this.failed > 0) {
-      process.exit(1);
-    }
-
-    return { passed: this.passed, failed: this.failed };
-  }
-}
-
-/**
- * Assertion helpers
- */
-export function assertSuccess(result, message = 'Operation should succeed') {
-  assert(result.success === true, `${message}: Expected success=true, got ${result.success}`);
-}
-
-export function assertFailure(result, message = 'Operation should fail') {
-  assert(result.success === false, `${message}: Expected success=false, got ${result.success}`);
-}
-
-export function assertEqual(actual, expected, message) {
-  assert.strictEqual(actual, expected, message || `Expected ${expected}, got ${actual}`);
-}
-
-export function assertIncludes(array, item, message) {
-  assert(array.includes(item), message || `Array should include ${item}`);
-}
-
-export function assertNotIncludes(array, item, message) {
-  assert(!array.includes(item), message || `Array should not include ${item}`);
-}
-
-export function assertThrows(fn, message) {
-  try {
-    fn();
-    assert.fail(message || 'Expected function to throw an error');
-  } catch (error) {
-    // Function threw an error as expected
-    return;
-  }
-}
 
 /**
  * Create a mock Telegram update payload

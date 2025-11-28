@@ -2,13 +2,11 @@
  * D1 Repository Property Tests
  */
 
-import { TestRunner, createMockEnv } from '../../utils/test-helpers.js';
-import assert from 'node:assert';
+import { createMockEnv } from '../../utils/test-helpers.js';
 import fc from 'fast-check';
 import * as subRepo from '../../../src/user-management/repositories/d1-subscription-repository.js';
 import * as watchlistRepo from '../../../src/user-management/repositories/d1-watchlist-repository.js';
 
-const runner = new TestRunner();
 
 /**
  * **Feature: kv-to-d1-migration, Property 4: SQL injection prevention**
@@ -17,7 +15,7 @@ const runner = new TestRunner();
  * All D1 queries should use parameterized queries to prevent SQL injection attacks.
  * No user input should be directly concatenated into SQL strings.
  */
-runner.test('Property 4: SQL injection prevention', async () => {
+test('Property 4: SQL injection prevention', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.oneof(
@@ -67,7 +65,7 @@ runner.test('Property 4: SQL injection prevention', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -77,7 +75,7 @@ runner.test('Property 4: SQL injection prevention', async () => {
  * D1 repositories should maintain the same API signatures as KV repositories
  * to ensure drop-in compatibility at the service layer.
  */
-runner.test('Property 12: Service API compatibility', async () => {
+test('Property 12: Service API compatibility', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 100000000, max: 999999999 }),
@@ -88,16 +86,16 @@ runner.test('Property 12: Service API compatibility', async () => {
 
         // Test subscription repository API
         const addResult = await subRepo.addChatId(db, chatId);
-        assert(typeof addResult === 'boolean' || addResult === undefined, 'addChatId should return boolean or void');
+        expect(typeof addResult === 'boolean' || addResult === undefined).toBeTruthy(); // addChatId should return boolean or void
 
         const existsResult = await subRepo.chatIdExists(db, chatId);
-        assert(typeof existsResult === 'boolean', 'chatIdExists should return boolean');
+        expect(typeof existsResult === 'boolean').toBeTruthy(); // chatIdExists should return boolean
 
         const getAllResult = await subRepo.getChatIds(db);
-        assert(Array.isArray(getAllResult), 'getChatIds should return array');
+        expect(Array.isArray(getAllResult)).toBeTruthy(); // getChatIds should return array
 
         const removeResult = await subRepo.removeChatId(db, chatId);
-        assert(typeof removeResult === 'boolean' || removeResult === undefined, 'removeChatId should return boolean or void');
+        expect(typeof removeResult === 'boolean' || removeResult === undefined).toBeTruthy(); // removeChatId should return boolean or void
 
         // Test watchlist repository API
         for (const ticker of tickers) {
@@ -105,7 +103,7 @@ runner.test('Property 12: Service API compatibility', async () => {
         }
 
         const watchlist = await watchlistRepo.getWatchlist(db, chatId);
-        assert(Array.isArray(watchlist), 'getWatchlist should return array');
+        expect(Array.isArray(watchlist)).toBeTruthy(); // getWatchlist should return array
 
         if (tickers.length > 0) {
           await watchlistRepo.removeTicker(db, chatId, tickers[0]);
@@ -119,7 +117,7 @@ runner.test('Property 12: Service API compatibility', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -129,7 +127,7 @@ runner.test('Property 12: Service API compatibility', async () => {
  * Foreign key constraints should be enforced, preventing orphaned records
  * and maintaining referential integrity.
  */
-runner.test('Property 1: Foreign key constraint enforcement', async () => {
+test('Property 1: Foreign key constraint enforcement', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 100000000, max: 999999999 }),
@@ -144,7 +142,7 @@ runner.test('Property 1: Foreign key constraint enforcement', async () => {
 
           // If it succeeds, verify the user was auto-created or the operation was idempotent
           const watchlist = await watchlistRepo.getWatchlist(db, chatId);
-          assert(Array.isArray(watchlist), 'Should return valid watchlist');
+          expect(Array.isArray(watchlist)).toBeTruthy(); // Should return valid watchlist
         } catch (error) {
           // Foreign key constraint error is acceptable
           assert(
@@ -161,7 +159,7 @@ runner.test('Property 1: Foreign key constraint enforcement', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -170,7 +168,7 @@ runner.test('Property 1: Foreign key constraint enforcement', async () => {
  *
  * Unique constraints should prevent duplicate entries and maintain data integrity.
  */
-runner.test('Property 2: Unique constraint enforcement', async () => {
+test('Property 2: Unique constraint enforcement', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 100000000, max: 999999999 }),
@@ -185,7 +183,7 @@ runner.test('Property 2: Unique constraint enforcement', async () => {
 
         const chatIds = await subRepo.getChatIds(db);
         const count = chatIds.filter(id => id === chatId.toString()).length;
-        assert(count <= 1, 'Should not have duplicate chat IDs');
+        expect(count <= 1).toBeTruthy(); // Should not have duplicate chat IDs
 
         // Add ticker twice - should not create duplicates
         await watchlistRepo.addTicker(db, chatId, ticker);
@@ -193,7 +191,7 @@ runner.test('Property 2: Unique constraint enforcement', async () => {
 
         const watchlist = await watchlistRepo.getWatchlist(db, chatId);
         const tickerCount = watchlist.filter(t => t === ticker).length;
-        assert(tickerCount <= 1, 'Should not have duplicate tickers');
+        expect(tickerCount <= 1).toBeTruthy(); // Should not have duplicate tickers
 
         return true;
       }
@@ -201,7 +199,7 @@ runner.test('Property 2: Unique constraint enforcement', async () => {
     { numRuns: 50 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
 /**
@@ -211,7 +209,7 @@ runner.test('Property 2: Unique constraint enforcement', async () => {
  * When a transaction fails, all changes should be rolled back to maintain
  * database consistency.
  */
-runner.test('Property 19: Transaction rollback on failure', async () => {
+test('Property 19: Transaction rollback on failure', async () => {
   const result = await fc.assert(
     fc.asyncProperty(
       fc.integer({ min: 100000000, max: 999999999 }),
@@ -232,7 +230,7 @@ runner.test('Property 19: Transaction rollback on failure', async () => {
           await db.batch(statements);
         } catch (error) {
           // Transaction should fail
-          assert(error instanceof Error, 'Should throw error on invalid operation');
+          expect(error instanceof Error).toBeTruthy(); // Should throw error on invalid operation
 
           // Verify no partial data was committed (in a real test with actual DB)
           // For mock, we just verify the error was caught
@@ -246,8 +244,7 @@ runner.test('Property 19: Transaction rollback on failure', async () => {
     { numRuns: 30 }
   );
 
-  assert(result === null || result === undefined, 'Property should hold for all test cases');
+  expect(result === null || result === undefined).toBeTruthy(); // Property should hold for all test cases
 });
 
-// Run tests
-runner.run().catch(console.error);
+// Empty describe block removed - no additional tests needed
