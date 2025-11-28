@@ -1,7 +1,4 @@
 import { spawn } from 'child_process';
-import { promisify } from 'util';
-
-const sleep = promisify(setTimeout);
 
 export default async function globalTeardown() {
   console.log('🛑 Stopping Wrangler dev server...');
@@ -10,13 +7,6 @@ export default async function globalTeardown() {
 
   if (wranglerProcess && !wranglerProcess.killed) {
     try {
-      // Create a promise that resolves when the process exits
-      const exitPromise = new Promise((resolve) => {
-        wranglerProcess.once('exit', resolve);
-        // Fallback timeout in case exit event doesn't fire
-        setTimeout(resolve, 3000);
-      });
-
       // Kill the process and all its children
       if (process.platform === 'win32') {
         // Windows requires taskkill to kill process tree
@@ -24,31 +14,15 @@ export default async function globalTeardown() {
           stdio: 'ignore'
         });
       } else {
-        // Unix: kill process group
+        // Unix: kill process group (use SIGKILL for immediate termination)
         try {
-          process.kill(-wranglerProcess.pid, 'SIGTERM');
+          process.kill(-wranglerProcess.pid, 'SIGKILL');
         } catch (error) {
-          // If process group kill fails, try killing just the process
-          if (error.code === 'ESRCH') {
-            // Process already gone
-          } else {
-            wranglerProcess.kill('SIGTERM');
-          }
+          // Process already gone, that's fine
         }
       }
-
-      // Wait for the process to actually exit
-      await exitPromise;
-
-      // Clean up any remaining handles
-      if (wranglerProcess.stdout) wranglerProcess.stdout.destroy();
-      if (wranglerProcess.stderr) wranglerProcess.stderr.destroy();
-      if (wranglerProcess.stdin) wranglerProcess.stdin.destroy();
     } catch (error) {
-      // Process may have already exited, which is fine
-      if (error.code !== 'ESRCH') {
-        console.warn('Warning: Error stopping Wrangler process:', error.message);
-      }
+      // Ignore all errors - process cleanup will happen anyway
     }
   }
 
