@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Updated all imports to reflect new module structure
 - Reorganized test files to mirror source structure
 
+### Added
+- Initial D1 database schema migration script for KV to D1 migration
+
+### Dependencies
+- Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`
+
 ### Technical Details
 - All functionality preserved - no breaking changes to bot behavior
 - TypeScript compilation verified with zero errors
