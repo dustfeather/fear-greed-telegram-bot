@@ -25,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed unbound variable error in `scripts/test-worker.sh` by moving color variable definitions before first use
 - Fixed worker integration tests to handle missing `TELEGRAM_WEBHOOK_SECRET` gracefully: tests now expect 401 responses when webhook secret is not configured instead of failing
 - Fixed CI test job to create `.dev.vars` file from GitHub secrets, allowing tests to properly authenticate with the test worker
-- Fixed Jest global teardown error: simplified Wrangler process cleanup to use SIGKILL and ignore all errors, allowing Jest to exit cleanly
+- Fixed Jest hanging after test completion: added `--forceExit` flag to test scripts to force Jest to exit after tests complete, preventing hang from lingering Wrangler process handles
 
 ### Removed
 - Custom TestRunner class and assertion helpers
