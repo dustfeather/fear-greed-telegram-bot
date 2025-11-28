@@ -9,16 +9,9 @@ import fs from 'fs';
 import path from 'path';
 
 // Read environment variables
-const FEAR_GREED_KV_NAMESPACE_ID = process.env.FEAR_GREED_KV_NAMESPACE_ID;
-const FEAR_GREED_KV_PREVIEW_ID = process.env.FEAR_GREED_KV_PREVIEW_ID || null;
 const FEAR_GREED_D1_DATABASE_ID = process.env.FEAR_GREED_D1_DATABASE_ID;
 
 // Validate required environment variables
-if (!FEAR_GREED_KV_NAMESPACE_ID) {
-  console.error('❌ Error: FEAR_GREED_KV_NAMESPACE_ID environment variable is required');
-  process.exit(1);
-}
-
 if (!FEAR_GREED_D1_DATABASE_ID) {
   console.error('❌ Error: FEAR_GREED_D1_DATABASE_ID environment variable is required');
   process.exit(1);
@@ -58,12 +51,6 @@ const config = {
       '0 1 * * 2-6'      // 01:00 (next day) - Tue-Sat to cover weekday late nights
     ]
   },
-  kv_namespaces: [
-    {
-      binding: 'FEAR_GREED_KV',
-      id: FEAR_GREED_KV_NAMESPACE_ID
-    }
-  ],
   d1_databases: [
     {
       binding: 'FEAR_GREED_D1',
@@ -73,11 +60,6 @@ const config = {
   ]
 };
 
-// Conditionally add preview_id if provided
-if (FEAR_GREED_KV_PREVIEW_ID) {
-  config.kv_namespaces[0].preview_id = FEAR_GREED_KV_PREVIEW_ID;
-}
-
 // Write the configuration file
 const outputPath = path.join(process.cwd(), 'wrangler.jsonc');
 const output = JSON.stringify(config, null, 2);
@@ -85,9 +67,5 @@ const output = JSON.stringify(config, null, 2);
 fs.writeFileSync(outputPath, output, 'utf8');
 
 console.log('✓ wrangler.jsonc generated successfully');
-console.log(`✓ KV namespace ID: ${FEAR_GREED_KV_NAMESPACE_ID}`);
-if (FEAR_GREED_KV_PREVIEW_ID) {
-  console.log(`✓ KV preview ID: ${FEAR_GREED_KV_PREVIEW_ID}`);
-}
 console.log(`✓ D1 database ID: ${FEAR_GREED_D1_DATABASE_ID}`);
 

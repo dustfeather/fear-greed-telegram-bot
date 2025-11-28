@@ -1,5 +1,4 @@
 import type { Env, SubscriptionResult, SanitizedSubscriptionResult } from '../../core/types/index.js';
-import * as KVSubscriptionRepo from '../repositories/subscription-repository.js';
 import * as D1SubscriptionRepo from '../repositories/d1-subscription-repository.js';
 import { getWatchlist } from './watchlist-service.js';
 import { getErrorMessage } from '../../core/utils/errors.js';
@@ -24,10 +23,7 @@ export function sanitizeSubscriptionResult(result: SubscriptionResult): Sanitize
  */
 export async function sub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    // Use D1 if available, otherwise fall back to KV
-    const wasAlreadySubscribed = env.FEAR_GREED_D1
-      ? !(await D1SubscriptionRepo.addChatId(env.FEAR_GREED_D1, chatId))
-      : !(await KVSubscriptionRepo.addChatId(env.FEAR_GREED_KV, chatId));
+    const wasAlreadySubscribed = !(await D1SubscriptionRepo.addChatId(env.FEAR_GREED_D1, chatId));
 
     // Initialize watchlist with SPY if user doesn't have one
     // This ensures new subscribers start with SPY
@@ -41,9 +37,7 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
       }
     }
 
-    const chatIds = env.FEAR_GREED_D1
-      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
-      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
+    const chatIds = await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1);
 
     return {
       success: true,
@@ -71,14 +65,8 @@ export async function sub(chatId: number | string, env: Env): Promise<Subscripti
  */
 export async function unsub(chatId: number | string, env: Env): Promise<SubscriptionResult> {
   try {
-    // Use D1 if available, otherwise fall back to KV
-    const wasSubscribed = env.FEAR_GREED_D1
-      ? await D1SubscriptionRepo.removeChatId(env.FEAR_GREED_D1, chatId)
-      : await KVSubscriptionRepo.removeChatId(env.FEAR_GREED_KV, chatId);
-
-    const chatIds = env.FEAR_GREED_D1
-      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
-      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
+    const wasSubscribed = await D1SubscriptionRepo.removeChatId(env.FEAR_GREED_D1, chatId);
+    const chatIds = await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1);
 
     return {
       success: true,
@@ -99,6 +87,15 @@ export async function unsub(chatId: number | string, env: Env): Promise<Subscrip
 }
 
 /**
+ * Get all subscribed chat IDs
+ * @param env - Environment variables
+ * @returns Promise resolving to array of chat IDs
+ */
+export async function getChatIds(env: Env): Promise<(number | string)[]> {
+  return await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1);
+}
+
+/**
  * Sleep utility for rate limiting
  */
 function sleep(ms: number): Promise<void> {
@@ -113,10 +110,7 @@ function sleep(ms: number): Promise<void> {
  */
 export async function listSubscribers(env: Env): Promise<string> {
   try {
-    // Use D1 if available, otherwise fall back to KV
-    const chatIds = env.FEAR_GREED_D1
-      ? await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1)
-      : await KVSubscriptionRepo.getChatIds(env.FEAR_GREED_KV);
+    const chatIds = await D1SubscriptionRepo.getChatIds(env.FEAR_GREED_D1);
 
     if (chatIds.length === 0) {
       return 'Total subscribers: 0\n\nNo subscribers found.';

@@ -3,7 +3,7 @@ import { sendTelegramMessage } from '../../telegram/services/message-service.js'
 import type { Env } from '../../core/types/index.js';
 import { RATINGS } from '../../core/constants/index.js';
 import { getFearGreedIndex } from '../../market-data/services/fear-greed-service.js';
-import { getChatIds } from '../../user-management/repositories/subscription-repository.js';
+import { getChatIds } from '../../user-management/services/subscription-service.js';
 import { getWatchlist, initializeWatchlistIfMissing } from '../../user-management/services/watchlist-service.js';
 import { toAppError } from '../../core/utils/errors.js';
 import { evaluateTradingSignal, formatTradingSignalMessage, createDataUnavailableSignal } from '../../trading/services/signal-service.js';
@@ -30,7 +30,7 @@ export async function handleScheduled(chatId: number | string | null = null, env
     }
 
     // Get Fear & Greed Index (with caching)
-    const data = await getFearGreedIndex(env.FEAR_GREED_KV);
+    const data = await getFearGreedIndex(env);
 
     const rating = data.rating.toLowerCase();
     const score = (Math.round(data.score * 100) / 100).toFixed(2);
@@ -42,7 +42,7 @@ export async function handleScheduled(chatId: number | string | null = null, env
 
     if (chatId) {
       // Specific user request - get their watchlist
-      const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+      const watchlist = await getWatchlist(env, chatId);
       const tickersToProcess = ticker ? [ticker] : watchlist;
 
       // Send one message per ticker
@@ -75,14 +75,14 @@ export async function handleScheduled(chatId: number | string | null = null, env
       }
     } else {
       // Broadcast to all subscribers - iterate through each user's watchlist
-      const chatIds = await getChatIds(env.FEAR_GREED_KV);
+      const chatIds = await getChatIds(env);
       const shouldSendToAll = (rating === RATINGS.FEAR || rating === RATINGS.EXTREME_FEAR);
 
       // Initialize watchlists for all existing users who don't have one
       // This happens on the first scheduled job run
       for (const userId of chatIds) {
         try {
-          await initializeWatchlistIfMissing(env.FEAR_GREED_KV, userId);
+          await initializeWatchlistIfMissing(env, userId);
         } catch (error) {
           console.error(`Error initializing watchlist for user ${userId}:`, error);
           // Continue with next user
@@ -92,7 +92,7 @@ export async function handleScheduled(chatId: number | string | null = null, env
       // Process each user's watchlist
       for (const userId of chatIds) {
         try {
-          const watchlist = await getWatchlist(env.FEAR_GREED_KV, userId);
+          const watchlist = await getWatchlist(env, userId);
 
           // Send one message per ticker in watchlist
           for (const tickerSymbol of watchlist) {
@@ -132,7 +132,7 @@ export async function handleScheduled(chatId: number | string | null = null, env
     // This ensures users always receive a signal with reasoning
     if (chatId) {
       try {
-        const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+        const watchlist = await getWatchlist(env, chatId);
         const tickersToProcess = ticker ? [ticker] : watchlist;
 
         for (const tickerSymbol of tickersToProcess) {

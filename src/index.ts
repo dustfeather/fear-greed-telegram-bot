@@ -10,10 +10,6 @@ import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatest
 import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './trading/services/position-service.js';
 import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './user-management/services/watchlist-service.js';
 import { isBankHoliday } from './trading/utils/holidays.js';
-import { DataMigrator } from './migration/index.js';
-
-// Track if migration has been checked this Worker instance
-let migrationChecked = false;
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -82,33 +78,7 @@ function isValidTelegramUpdate(update: unknown): update is TelegramUpdate {
   return true;
 }
 
-/**
- * Check and run migration if needed (once per Worker instance)
- * @param env - Environment variables
- */
-async function checkAndRunMigration(env: Env): Promise<void> {
-  if (migrationChecked) {
-    return; // Already checked in this Worker instance
-  }
 
-  migrationChecked = true;
-
-  try {
-    const migrator = new DataMigrator(env.FEAR_GREED_KV, env.FEAR_GREED_D1);
-    const needsMigration = await migrator.needsMigration();
-
-    if (needsMigration) {
-      console.log('Starting automatic KV to D1 migration...');
-      const status = await migrator.runMigration();
-      console.log('Migration completed successfully:', JSON.stringify(status, null, 2));
-    } else {
-      console.log('Migration already completed, skipping.');
-    }
-  } catch (error) {
-    console.error('Migration check/execution failed:', error);
-    // Don't throw - allow Worker to continue operating with KV
-  }
-}
 
 /**
  * Handle incoming HTTP request.
@@ -117,19 +87,11 @@ async function checkAndRunMigration(env: Env): Promise<void> {
  * @returns Promise resolving to HTTP response
  */
 async function handleRequest(request: Request, env: Env): Promise<Response> {
-  // Check and run migration on first request
-  await checkAndRunMigration(env);
-
   const { pathname } = new URL(request.url);
 
   // Handle deployment notification endpoint
   if (pathname === '/deploy-notify' && request.method === 'POST') {
     return await handleDeployNotify(request, env);
-  }
-
-  // Handle migration endpoint
-  if (pathname === '/migrate' && request.method === 'POST') {
-    return await handleMigrationRequest(request, env);
   }
 
   // Handle Telegram webhook
@@ -286,9 +248,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
 
         // Check if user can execute (once per calendar month limit)
-        const tradingAllowed = await canTrade(env.FEAR_GREED_KV, chatId);
+        const tradingAllowed = await canTrade(env, chatId);
         if (!tradingAllowed) {
-          const lastExec = await getLatestExecution(env.FEAR_GREED_KV, chatId);
+          const lastExec = await getLatestExecution(env, chatId);
           if (lastExec) {
             const lastExecMonth = getMonthName(lastExec.executionDate);
             // Calculate next month
@@ -311,7 +273,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         }
 
         // Get user's active position for this ticker
-        const activePosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
+        const activePosition = await getActivePosition(env, chatId);
         const hasActivePosition = activePosition && activePosition.ticker.toUpperCase() === ticker.toUpperCase();
 
         // Determine signal type
@@ -319,16 +281,16 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
         // Record execution
         try {
-          await recordExecution(env.FEAR_GREED_KV, chatId, signalType, ticker, executionPrice, undefined, executionDate);
+          await recordExecution(env, chatId, signalType, ticker, executionPrice, undefined, executionDate);
 
           // Update active position
           if (signalType === 'BUY') {
-            await setActivePosition(env.FEAR_GREED_KV, chatId, ticker, executionPrice);
+            await setActivePosition(env, chatId, ticker, executionPrice);
             // Automatically add ticker to watchlist when opening position
-            await ensureTickerInWatchlist(env.FEAR_GREED_KV, chatId, ticker);
+            await ensureTickerInWatchlist(env, chatId, ticker);
           } else if (signalType === 'SELL') {
             // SELL execution closes ALL open positions for this ticker
-            await clearActivePosition(env.FEAR_GREED_KV, chatId);
+            await clearActivePosition(env, chatId);
           }
 
           const signalEmoji = signalType === 'BUY' ? '🟢' : '🔴';
@@ -374,7 +336,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
         // Get execution history
         try {
-          const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId, ticker);
+          const history = await getExecutionHistory(env, chatId, ticker);
           const formatted = formatExecutionHistory(history);
 
           if (ticker) {
@@ -407,7 +369,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         if (parts.length === 1) {
           // /watchlist - Show current watchlist
           try {
-            const watchlist = await getWatchlist(env.FEAR_GREED_KV, chatId);
+            const watchlist = await getWatchlist(env, chatId);
             const watchlistText = watchlist.length > 0
               ? watchlist.map(t => `• $${t}`).join('\n')
               : '• $SPY (default)';
@@ -428,7 +390,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         } else if (parts.length === 3 && parts[1].toLowerCase() === 'add') {
           // /watchlist add TICKER
           const tickerInput = parts[2];
-          const result = await addTickerToWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
+          const result = await addTickerToWatchlist(env, chatId, tickerInput);
 
           if (result.success) {
             await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
@@ -438,7 +400,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         } else if (parts.length === 3 && parts[1].toLowerCase() === 'remove') {
           // /watchlist remove TICKER
           const tickerInput = parts[2];
-          const result = await removeTickerFromWatchlist(env.FEAR_GREED_KV, chatId, tickerInput);
+          const result = await removeTickerFromWatchlist(env, chatId, tickerInput);
 
           if (result.success) {
             await sendTelegramMessage(chatId, `✅ ${result.message}`, env);
@@ -489,54 +451,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
   } else {
     return methodNotAllowedResponse();
-  }
-}
-
-/**
- * Handle migration request.
- * @param request - The incoming HTTP request
- * @param env - Environment variables
- * @returns Promise resolving to HTTP response
- */
-async function handleMigrationRequest(request: Request, env: Env): Promise<Response> {
-  try {
-    // Get token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    let providedToken: string | null = null;
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      providedToken = authHeader.substring(7);
-    }
-
-    // Validate token
-    if (!providedToken || providedToken !== env.TELEGRAM_BOT_TOKEN_SECRET) {
-      return unauthorizedResponse('Invalid token');
-    }
-
-    // Check if migration is needed
-    const migrator = new DataMigrator(env.FEAR_GREED_KV, env.FEAR_GREED_D1);
-    const needsMigration = await migrator.needsMigration();
-
-    if (!needsMigration) {
-      return successResponse({
-        success: true,
-        message: 'Migration already completed',
-        alreadyCompleted: true
-      });
-    }
-
-    // Run migration
-    console.log('Starting KV to D1 migration via API endpoint...');
-    const status = await migrator.runMigration();
-
-    return successResponse({
-      success: true,
-      message: 'Migration completed successfully',
-      status
-    });
-  } catch (error) {
-    console.error('Error in handleMigrationRequest:', error);
-    return errorResponse('Migration failed: ' + (error instanceof Error ? error.message : String(error)), 500);
   }
 }
 

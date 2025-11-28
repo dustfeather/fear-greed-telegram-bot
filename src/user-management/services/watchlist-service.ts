@@ -2,11 +2,9 @@
  * Watchlist management utilities
  */
 
-import type { KVNamespace } from '@cloudflare/workers-types';
 import type { Env, Watchlist } from '../../core/types/index.js';
 import { createKVError } from '../../core/utils/errors.js';
 import { isValidTicker } from '../../core/utils/validation.js';
-import * as KVWatchlistRepo from '../repositories/watchlist-repository.js';
 import * as D1WatchlistRepo from '../repositories/d1-watchlist-repository.js';
 
 const DEFAULT_WATCHLIST: Watchlist = ['SPY'];
@@ -33,46 +31,23 @@ function normalizeAndDeduplicate(tickers: string[]): string[] {
 
 /**
  * Initialize watchlist for a user if it doesn't exist
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @returns true if watchlist was initialized, false if it already existed
  */
 export async function initializeWatchlistIfMissing(
-  env: Env | KVNamespace,
+  env: Env,
   chatId: number | string
 ): Promise<boolean> {
   try {
-    // Check if env is Env object or KVNamespace
-    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
-
-    let watchlist: Watchlist | null;
-
-    if (isEnvObject) {
-      const envObj = env as Env;
-      watchlist = envObj.FEAR_GREED_D1
-        ? await D1WatchlistRepo.getWatchlist(envObj.FEAR_GREED_D1, chatId)
-        : await KVWatchlistRepo.getWatchlistData(envObj.FEAR_GREED_KV, chatId);
-    } else {
-      watchlist = await KVWatchlistRepo.getWatchlistData(env as KVNamespace, chatId);
-    }
+    const watchlist = await D1WatchlistRepo.getWatchlist(env.FEAR_GREED_D1, chatId);
 
     if (!watchlist || watchlist.length === 0) {
       // Initialize watchlist with default
       const defaultWatchlist = [...DEFAULT_WATCHLIST];
-
-      if (isEnvObject) {
-        const envObj = env as Env;
-        if (envObj.FEAR_GREED_D1) {
-          for (const ticker of defaultWatchlist) {
-            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
-          }
-        } else {
-          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
-        }
-      } else {
-        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
+      for (const ticker of defaultWatchlist) {
+        await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, ticker);
       }
-
       return true;
     }
 
@@ -84,84 +59,25 @@ export async function initializeWatchlistIfMissing(
 
 /**
  * Get user's watchlist, defaulting to ['SPY'] if empty
- * Automatically initializes watchlist if missing (on first scheduled job or first /now command)
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * Automatically initializes watchlist if missing
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @returns User's watchlist
  */
-export async function getWatchlist(env: Env | KVNamespace, chatId: number | string): Promise<Watchlist> {
+export async function getWatchlist(env: Env, chatId: number | string): Promise<Watchlist> {
   try {
-    // Check if env is Env object or KVNamespace
-    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
-
-    let watchlist: Watchlist | null;
-
-    if (isEnvObject) {
-      const envObj = env as Env;
-      watchlist = envObj.FEAR_GREED_D1
-        ? await D1WatchlistRepo.getWatchlist(envObj.FEAR_GREED_D1, chatId)
-        : await KVWatchlistRepo.getWatchlistData(envObj.FEAR_GREED_KV, chatId);
-    } else {
-      watchlist = await KVWatchlistRepo.getWatchlistData(env as KVNamespace, chatId);
-    }
+    let watchlist = await D1WatchlistRepo.getWatchlist(env.FEAR_GREED_D1, chatId);
 
     if (!watchlist || watchlist.length === 0) {
       // Initialize watchlist for existing users who don't have one
       const defaultWatchlist = [...DEFAULT_WATCHLIST];
-
-      if (isEnvObject) {
-        const envObj = env as Env;
-        if (envObj.FEAR_GREED_D1) {
-          for (const ticker of defaultWatchlist) {
-            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
-          }
-        } else {
-          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
-        }
-      } else {
-        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
+      for (const ticker of defaultWatchlist) {
+        await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, ticker);
       }
-
       return defaultWatchlist;
     }
 
-    const normalized = normalizeAndDeduplicate(watchlist);
-
-    // If normalization resulted in empty array, initialize with default
-    if (normalized.length === 0) {
-      const defaultWatchlist = [...DEFAULT_WATCHLIST];
-
-      if (isEnvObject) {
-        const envObj = env as Env;
-        if (envObj.FEAR_GREED_D1) {
-          // Clear existing and add default
-          await D1WatchlistRepo.clearWatchlist(envObj.FEAR_GREED_D1, chatId);
-          for (const ticker of defaultWatchlist) {
-            await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
-          }
-        } else {
-          await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, defaultWatchlist);
-        }
-      } else {
-        await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, defaultWatchlist);
-      }
-
-      return defaultWatchlist;
-    }
-
-    // For D1, normalization is already handled by the repository (uppercase)
-    // For KV, update if normalized differs
-    if (!isEnvObject || !(env as Env).FEAR_GREED_D1) {
-      if (JSON.stringify(normalized) !== JSON.stringify(watchlist)) {
-        if (isEnvObject) {
-          await KVWatchlistRepo.saveWatchlistData((env as Env).FEAR_GREED_KV, chatId, normalized);
-        } else {
-          await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, normalized);
-        }
-      }
-    }
-
-    return normalized;
+    return watchlist;
   } catch (error) {
     throw createKVError('Failed to get watchlist', error);
   }
@@ -169,13 +85,13 @@ export async function getWatchlist(env: Env | KVNamespace, chatId: number | stri
 
 /**
  * Save watchlist (ensures unique tickers, case-insensitive)
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @param tickers - Array of ticker symbols
  * @returns Promise resolving to void
  */
 export async function setWatchlist(
-  env: Env | KVNamespace,
+  env: Env,
   chatId: number | string,
   tickers: string[]
 ): Promise<void> {
@@ -187,22 +103,10 @@ export async function setWatchlist(
       normalized.push(...DEFAULT_WATCHLIST);
     }
 
-    // Check if env is Env object or KVNamespace
-    const isEnvObject = 'FEAR_GREED_D1' in env || 'FEAR_GREED_KV' in env;
-
-    if (isEnvObject) {
-      const envObj = env as Env;
-      if (envObj.FEAR_GREED_D1) {
-        // Clear and rebuild watchlist in D1
-        await D1WatchlistRepo.clearWatchlist(envObj.FEAR_GREED_D1, chatId);
-        for (const ticker of normalized) {
-          await D1WatchlistRepo.addTicker(envObj.FEAR_GREED_D1, chatId, ticker);
-        }
-      } else {
-        await KVWatchlistRepo.saveWatchlistData(envObj.FEAR_GREED_KV, chatId, normalized);
-      }
-    } else {
-      await KVWatchlistRepo.saveWatchlistData(env as KVNamespace, chatId, normalized);
+    // Clear and rebuild watchlist in D1
+    await D1WatchlistRepo.clearWatchlist(env.FEAR_GREED_D1, chatId);
+    for (const ticker of normalized) {
+      await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, ticker);
     }
   } catch (error) {
     throw createKVError('Failed to set watchlist', error);
@@ -211,13 +115,13 @@ export async function setWatchlist(
 
 /**
  * Add ticker to watchlist (case-insensitive, prevents duplicates)
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to add
  * @returns Object with success flag and message
  */
 export async function addTickerToWatchlist(
-  env: Env | KVNamespace,
+  env: Env,
   chatId: number | string,
   ticker: string
 ): Promise<{ success: boolean; message: string; wasAlreadyAdded?: boolean }> {
@@ -244,9 +148,8 @@ export async function addTickerToWatchlist(
       };
     }
 
-    // Add ticker and save
-    watchlist.push(normalizedTicker);
-    await setWatchlist(env, chatId, watchlist);
+    // Add ticker
+    await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, normalizedTicker);
 
     return {
       success: true,
@@ -260,13 +163,13 @@ export async function addTickerToWatchlist(
 
 /**
  * Remove ticker from watchlist (case-insensitive, auto-adds SPY if watchlist becomes empty)
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to remove
  * @returns Object with success flag and message
  */
 export async function removeTickerFromWatchlist(
-  env: Env | KVNamespace,
+  env: Env,
   chatId: number | string,
   ticker: string
 ): Promise<{ success: boolean; message: string; wasRemoved?: boolean; spyReAdded?: boolean }> {
@@ -282,10 +185,10 @@ export async function removeTickerFromWatchlist(
     const normalizedTicker = validation.ticker;
     const watchlist = await getWatchlist(env, chatId);
 
-    // Find and remove ticker (case-insensitive)
-    const index = watchlist.findIndex(t => t.toUpperCase() === normalizedTicker);
+    // Check if ticker exists (case-insensitive)
+    const exists = watchlist.some(t => t.toUpperCase() === normalizedTicker);
 
-    if (index === -1) {
+    if (!exists) {
       return {
         success: false,
         message: `Ticker ${normalizedTicker} is not in your watchlist.`,
@@ -294,16 +197,17 @@ export async function removeTickerFromWatchlist(
     }
 
     // Remove ticker
-    watchlist.splice(index, 1);
+    await D1WatchlistRepo.removeTicker(env.FEAR_GREED_D1, chatId, normalizedTicker);
 
-    // If watchlist becomes empty, automatically add SPY back
+    // Check if watchlist is now empty
+    const updatedWatchlist = await D1WatchlistRepo.getWatchlist(env.FEAR_GREED_D1, chatId);
     let spyReAdded = false;
-    if (watchlist.length === 0) {
-      watchlist.push(...DEFAULT_WATCHLIST);
+
+    if (!updatedWatchlist || updatedWatchlist.length === 0) {
+      // Automatically add SPY back
+      await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, 'SPY');
       spyReAdded = true;
     }
-
-    await setWatchlist(env, chatId, watchlist);
 
     let message = `Removed ${normalizedTicker} from your watchlist.`;
     if (spyReAdded) {
@@ -323,13 +227,13 @@ export async function removeTickerFromWatchlist(
 
 /**
  * Ensure ticker exists in watchlist (used when opening position, prevents duplicates)
- * @param env - Environment variables (or KV namespace for backward compatibility)
+ * @param env - Environment variables
  * @param chatId - User's chat ID
  * @param ticker - Ticker symbol to ensure exists
  * @returns Promise resolving to void
  */
 export async function ensureTickerInWatchlist(
-  env: Env | KVNamespace,
+  env: Env,
   chatId: number | string,
   ticker: string
 ): Promise<void> {
@@ -347,13 +251,11 @@ export async function ensureTickerInWatchlist(
     const exists = watchlist.some(t => t.toUpperCase() === normalizedTicker);
 
     if (!exists) {
-      // Add ticker and save
-      watchlist.push(normalizedTicker);
-      await setWatchlist(env, chatId, watchlist);
+      // Add ticker
+      await D1WatchlistRepo.addTicker(env.FEAR_GREED_D1, chatId, normalizedTicker);
     }
   } catch (error) {
     // Log error but don't throw - this is a convenience function
     console.error('Failed to ensure ticker in watchlist:', error);
   }
 }
-

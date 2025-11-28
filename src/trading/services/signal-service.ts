@@ -259,7 +259,7 @@ export async function evaluateTradingSignal(
   // Check for user-specific active position if chatId is provided
   let activePosition: { ticker: string; entryPrice: number } | null = null;
   if (chatId) {
-    activePosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
+    activePosition = await getActivePosition(env, chatId);
     // Only consider active position if it's for the same ticker
     if (activePosition && activePosition.ticker.toUpperCase() !== ticker.toUpperCase()) {
       activePosition = null;

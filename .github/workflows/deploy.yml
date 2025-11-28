@@ -71,8 +71,6 @@ jobs:
         if: matrix.validation == 'wrangler-validate'
         shell: bash
         env:
-          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
-          FEAR_GREED_KV_PREVIEW_ID: ${{ secrets.FEAR_GREED_KV_PREVIEW_ID }}
           FEAR_GREED_D1_DATABASE_ID: ${{ secrets.FEAR_GREED_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
@@ -158,8 +156,6 @@ jobs:
       - name: Generate wrangler.jsonc Configuration
         shell: bash
         env:
-          FEAR_GREED_KV_NAMESPACE_ID: ${{ secrets.FEAR_GREED_KV_NAMESPACE_ID }}
-          FEAR_GREED_KV_PREVIEW_ID: ${{ secrets.FEAR_GREED_KV_PREVIEW_ID }}
           FEAR_GREED_D1_DATABASE_ID: ${{ secrets.FEAR_GREED_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
@@ -312,31 +308,6 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           workingDirectory: .
-        continue-on-error: false
-
-      - name: Run KV to D1 Data Migration
-        shell: bash
-        env:
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
-        run: |
-          set -euo pipefail
-
-          # Skip if required secrets are not set
-          if [ -z "${WORKER_URL:-}" ]; then
-            echo "⚠️  Warning: WORKER_URL secret not set, skipping data migration"
-            exit 0
-          fi
-
-          if [ -z "${TELEGRAM_BOT_TOKEN_SECRET:-}" ]; then
-            echo "⚠️  Warning: TELEGRAM_BOT_TOKEN_SECRET not set, skipping data migration"
-            exit 0
-          fi
-
-          echo "Running KV to D1 data migration..."
-          node scripts/run-kv-to-d1-migration.js
-
-          echo "✓ Data migration completed"
         continue-on-error: false
 
   post-deploy:

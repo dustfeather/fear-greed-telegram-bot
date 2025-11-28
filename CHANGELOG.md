@@ -8,17 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - D1 database support with SQL repositories for all data operations (subscriptions, watchlists, executions, positions, cache)
-- Automatic KV to D1 migration utility with status tracking
 - SQL migration scripts with proper schema, indexes, and foreign key constraints
 - Comprehensive migration documentation in `MIGRATION.md`
-- GitHub Actions workflow step for automated KV to D1 data migration during deployment
-- Migration API endpoint (`/migrate`) for triggering data migration via HTTP request
-- Migration script (`scripts/run-kv-to-d1-migration.js`) for CI/CD integration
+- D1 database binding in `wrangler.jsonc` configuration
 
 ### Changed
 - Reorganized codebase into feature-based modules: `core/`, `telegram/`, `user-management/`, `trading/`, `market-data/`, `scheduler/`
 - Improved architecture with clear separation of concerns (handlers → services → repositories)
-- Deployment workflow now includes automated data migration step after Worker deployment
+- Configuration: added D1 database binding to wrangler.jsonc for local development and production
+- Migration completed: KV data successfully migrated to D1 and marked as complete
+
+### Removed
+- KV namespace binding and all KV-related code
+- KV repositories and dual-mode service logic
+- KV environment variables from deployment workflow
+- Migration endpoint and automatic migration logic (migration completed)
 
 ### Dependencies
 - Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`

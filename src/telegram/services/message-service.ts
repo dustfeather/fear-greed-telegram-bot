@@ -2,7 +2,7 @@ import type { Env, SendMessageResponse } from '../../core/types/index.js';
 import { API_URLS, MESSAGES, HTTP_HEADERS, RATE_LIMITS } from '../../core/constants/index.js';
 import { enhancedFetch } from '../../core/utils/fetch.js';
 import { getErrorMessage } from '../../core/utils/errors.js';
-import { getChatIds } from '../../user-management/repositories/subscription-repository.js';
+import { getChatIds } from '../../user-management/services/subscription-service.js';
 import { isValidTelegramApiResponse } from '../../core/utils/validation.js';
 
 /**
@@ -91,7 +91,7 @@ export async function broadcastToAllSubscribers(
   env: Env
 ): Promise<{ totalSubscribers: number; successful: number; failed: number; errors: Array<{ chatId: number | string; error: string }> }> {
   try {
-    const chatIds = await getChatIds(env.FEAR_GREED_KV);
+    const chatIds = await getChatIds(env);
 
     if (chatIds.length === 0) {
       return {
