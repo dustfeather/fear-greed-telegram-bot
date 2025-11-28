@@ -474,3 +474,43 @@ export function createTelegramUpdate(command, chatId = 123456789) {
     }
   };
 }
+
+/**
+ * Assert that two values are equal
+ */
+export function assertEqual(actual, expected, message) {
+  if (actual !== expected) {
+    throw new Error(message || `Expected ${expected} but got ${actual}`);
+  }
+}
+
+/**
+ * Assert that a string includes a substring
+ */
+export function assertIncludes(str, substring, message) {
+  if (!str.includes(substring)) {
+    throw new Error(message || `Expected "${str}" to include "${substring}"`);
+  }
+}
+
+/**
+ * Assert that a string does not include a substring
+ */
+export function assertNotIncludes(str, substring, message) {
+  if (str.includes(substring)) {
+    throw new Error(message || `Expected "${str}" to not include "${substring}"`);
+  }
+}
+
+/**
+ * Test runner utility for property-based tests
+ */
+export class TestRunner {
+  constructor(env) {
+    this.env = env;
+  }
+
+  async run(testFn) {
+    return await testFn(this.env);
+  }
+}

@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Reorganized codebase into feature-based modules: `core/`, `telegram/`, `user-management/`, `trading/`, `market-data/`, `scheduler/`
 - Improved architecture with clear separation of concerns (handlers → services → repositories)
 
+### Fixed
+- Added missing test helper exports (`TestRunner`, `assertEqual`, `assertIncludes`, `assertNotIncludes`) to fix 3 failing test suites
+
 ### Removed
 - Custom TestRunner class and assertion helpers
 - Legacy test runner script and `test:legacy` npm script
