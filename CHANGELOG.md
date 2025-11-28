@@ -31,9 +31,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Custom TestRunner class and assertion helpers
 - Legacy test runner script and `test:legacy` npm script
 - All KV-related code, repositories, and configuration
+- KV to D1 migration code and documentation (no longer needed after migration completion)
 
 ### Dependencies
-- Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`
+- Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251128.0`
+- Fixed deprecated dependency warnings by adding npm overrides for `glob` (upgraded to v10.5.0) and `inflight` (replaced with maintained fork)
 
 ## 2025-11-27
 
