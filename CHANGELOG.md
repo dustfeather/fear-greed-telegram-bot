@@ -11,10 +11,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Automatic KV to D1 migration utility with status tracking
 - SQL migration scripts with proper schema, indexes, and foreign key constraints
 - Comprehensive migration documentation in `MIGRATION.md`
+- GitHub Actions workflow step for automated KV to D1 data migration during deployment
+- Migration API endpoint (`/migrate`) for triggering data migration via HTTP request
+- Migration script (`scripts/run-kv-to-d1-migration.js`) for CI/CD integration
 
 ### Changed
 - Reorganized codebase into feature-based modules: `core/`, `telegram/`, `user-management/`, `trading/`, `market-data/`, `scheduler/`
 - Improved architecture with clear separation of concerns (handlers → services → repositories)
+- Deployment workflow now includes automated data migration step after Worker deployment
 
 ### Dependencies
 - Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251127.0`

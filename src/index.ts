@@ -127,6 +127,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     return await handleDeployNotify(request, env);
   }
 
+  // Handle migration endpoint
+  if (pathname === '/migrate' && request.method === 'POST') {
+    return await handleMigrationRequest(request, env);
+  }
+
   // Handle Telegram webhook
   if (request.method === 'POST' && pathname === '/') {
     // Verify webhook secret token
@@ -484,6 +489,54 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
   } else {
     return methodNotAllowedResponse();
+  }
+}
+
+/**
+ * Handle migration request.
+ * @param request - The incoming HTTP request
+ * @param env - Environment variables
+ * @returns Promise resolving to HTTP response
+ */
+async function handleMigrationRequest(request: Request, env: Env): Promise<Response> {
+  try {
+    // Get token from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    let providedToken: string | null = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      providedToken = authHeader.substring(7);
+    }
+
+    // Validate token
+    if (!providedToken || providedToken !== env.TELEGRAM_BOT_TOKEN_SECRET) {
+      return unauthorizedResponse('Invalid token');
+    }
+
+    // Check if migration is needed
+    const migrator = new DataMigrator(env.FEAR_GREED_KV, env.FEAR_GREED_D1);
+    const needsMigration = await migrator.needsMigration();
+
+    if (!needsMigration) {
+      return successResponse({
+        success: true,
+        message: 'Migration already completed',
+        alreadyCompleted: true
+      });
+    }
+
+    // Run migration
+    console.log('Starting KV to D1 migration via API endpoint...');
+    const status = await migrator.runMigration();
+
+    return successResponse({
+      success: true,
+      message: 'Migration completed successfully',
+      status
+    });
+  } catch (error) {
+    console.error('Error in handleMigrationRequest:', error);
+    return errorResponse('Migration failed: ' + (error instanceof Error ? error.message : String(error)), 500);
   }
 }
 
