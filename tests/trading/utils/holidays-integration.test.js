@@ -7,6 +7,7 @@
 
 import { handleScheduled } from '../../../src/scheduler/handlers/scheduled-handler.js';
 import { isBankHoliday, isTradingDay } from '../../../src/trading/utils/holidays.js';
+import { setWatchlist } from '../../../src/user-management/services/watchlist-service.js';
 import { TestRunner } from '../../utils/test-helpers.js';
 import assert from 'node:assert';
 import fc from 'fast-check';
@@ -15,14 +16,22 @@ const runner = new TestRunner();
 
 // Mock environment for testing
 function createMockEnv() {
-  const kvStore = new Map();
-
   return {
-    FEAR_GREED_KV: {
-      get: async (key) => kvStore.get(key) || null,
-      put: async (key, value) => { kvStore.set(key, value); },
-      delete: async (key) => { kvStore.delete(key); },
-      list: async () => ({ keys: Array.from(kvStore.keys()).map(name => ({ name })) })
+    FEAR_GREED_D1: {
+      prepare: (query) => ({
+        bind: (...params) => ({
+          run: async () => ({ success: true }),
+          first: async () => null,
+          all: async () => ({ results: [] }),
+          raw: async () => []
+        }),
+        run: async () => ({ success: true }),
+        first: async () => null,
+        all: async () => ({ results: [] }),
+        raw: async () => []
+      }),
+      batch: async (statements) => statements.map(() => ({ success: true })),
+      exec: async (query) => ({ success: true })
     },
     TELEGRAM_BOT_TOKEN: 'test-token',
     TELEGRAM_WEBHOOK_SECRET: 'test-secret',
@@ -124,7 +133,7 @@ runner.test('Manual /now request does not skip on holiday', async () => {
   const chatId = 123456;
 
   // Initialize user with default watchlist
-  await env.FEAR_GREED_KV.put(`watchlist:${chatId}`, JSON.stringify(['SPY']));
+  await setWatchlist(env, chatId, ['SPY']);
 
   // Mock the current date to be Christmas 2024
   const originalDate = Date;
@@ -382,7 +391,7 @@ runner.test('Property 3: Manual requests on holidays include market closed notic
         const chatId = 123456789;
 
         // Initialize user with default watchlist
-        await env.FEAR_GREED_KV.put(`watchlist:${chatId}`, JSON.stringify(['SPY']));
+        await setWatchlist(env, chatId, ['SPY']);
 
         // Track Telegram messages sent
         const telegramMessages = [];

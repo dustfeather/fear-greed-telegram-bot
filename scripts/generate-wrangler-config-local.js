@@ -36,12 +36,9 @@ function loadDevVars() {
 
 // Load from .dev.vars first, then fall back to environment variables
 const devVars = loadDevVars();
-const FEAR_GREED_KV_NAMESPACE_ID = process.env.FEAR_GREED_KV_NAMESPACE_ID || devVars.FEAR_GREED_KV_NAMESPACE_ID;
-const FEAR_GREED_KV_PREVIEW_ID = process.env.FEAR_GREED_KV_PREVIEW_ID || devVars.FEAR_GREED_KV_PREVIEW_ID || null;
 const FEAR_GREED_D1_DATABASE_ID = process.env.FEAR_GREED_D1_DATABASE_ID || devVars.FEAR_GREED_D1_DATABASE_ID;
 
 // For local development, use a placeholder if not set
-const kvNamespaceId = FEAR_GREED_KV_NAMESPACE_ID || 'local-dev-namespace-id';
 const d1DatabaseId = FEAR_GREED_D1_DATABASE_ID || 'local-dev-database-id';
 
 // Build the configuration object
@@ -65,11 +62,6 @@ const config = {
       head_sampling_rate: 1
     }
   },
-  tail_consumers: [
-    {
-      service: 'cf-tail-worker'
-    }
-  ],
   triggers: {
     crons: [
       '0 9 * * 1-5',     // 09:00 weekdays (Mon-Fri)
@@ -78,12 +70,6 @@ const config = {
       '0 1 * * 2-6'      // 01:00 (next day) - Tue-Sat to cover weekday late nights
     ]
   },
-  kv_namespaces: [
-    {
-      binding: 'FEAR_GREED_KV',
-      id: kvNamespaceId
-    }
-  ],
   d1_databases: [
     {
       binding: 'FEAR_GREED_D1',
@@ -93,11 +79,6 @@ const config = {
   ]
 };
 
-// Conditionally add preview_id if provided
-if (FEAR_GREED_KV_PREVIEW_ID) {
-  config.kv_namespaces[0].preview_id = FEAR_GREED_KV_PREVIEW_ID;
-}
-
 // Write the configuration file
 const outputPath = path.join(process.cwd(), 'wrangler.jsonc');
 const output = JSON.stringify(config, null, 2);
@@ -105,14 +86,6 @@ const output = JSON.stringify(config, null, 2);
 fs.writeFileSync(outputPath, output, 'utf8');
 
 console.log('✓ wrangler.jsonc generated successfully for local development');
-if (FEAR_GREED_KV_NAMESPACE_ID) {
-  console.log(`✓ KV namespace ID: ${FEAR_GREED_KV_NAMESPACE_ID}`);
-  if (FEAR_GREED_KV_PREVIEW_ID) {
-    console.log(`✓ KV preview ID: ${FEAR_GREED_KV_PREVIEW_ID}`);
-  }
-} else {
-  console.log('⚠️  Using placeholder KV namespace ID (set FEAR_GREED_KV_NAMESPACE_ID in .dev.vars for real KV access)');
-}
 if (FEAR_GREED_D1_DATABASE_ID) {
   console.log(`✓ D1 database ID: ${FEAR_GREED_D1_DATABASE_ID}`);
 } else {

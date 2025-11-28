@@ -8,14 +8,10 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 - `TELEGRAM_BOT_TOKEN_SECRET` - Your Telegram bot token from BotFather (stored as Cloudflare Secret)
 - `TELEGRAM_WEBHOOK_SECRET` - A secure random string for verifying webhook requests (stored as Cloudflare Secret). Generate using: `openssl rand -hex 32`
 - `ADMIN_CHAT_ID` - Chat ID for error notifications (stored as Cloudflare Secret)
-- `FEAR_GREED_KV_NAMESPACE_ID` - Production KV namespace ID (legacy, will be removed after D1 migration)
 - `FEAR_GREED_D1_DATABASE_ID` - Production D1 database ID (required)
 - `CF_API_TOKEN` - Cloudflare API token with Workers permissions
 - `CF_ACCOUNT_ID` - Your Cloudflare account ID
 - `WORKER_URL` - Your deployed Worker URL (e.g., `https://fear-greed-telegram-bot.your-subdomain.workers.dev`) - used for Telegram webhook setup
-
-### Optional Secrets:
-- `FEAR_GREED_KV_PREVIEW_ID` - Preview KV namespace ID (for local development/testing)
 
 **Note:** `TELEGRAM_BOT_TOKEN_SECRET`, `TELEGRAM_WEBHOOK_SECRET`, and `ADMIN_CHAT_ID` are automatically uploaded to Cloudflare Secrets API during deployment. They are NOT stored in `wrangler.jsonc` for security compliance with Cloudflare best practices.
 
@@ -34,27 +30,13 @@ Make sure the following secrets are configured in your GitHub repository (Settin
 3. Use "Edit Cloudflare Workers" template, or create a custom token with:
    - **Permissions:**
      - Account: Workers Scripts: Edit
-     - Account: Workers KV Storage: Edit
+     - Account: D1: Edit
      - Account: Workers Secrets: Edit (required for uploading secrets via `wrangler secret bulk`)
      - Account: Account Settings: Read
    - **Account Resources:** Include - Your Account
 4. Copy the token and add it as `CF_API_TOKEN` secret
 
 **Note:** The GitHub secret is named `CF_API_TOKEN` for brevity, but internally it's mapped to `CLOUDFLARE_API_TOKEN` environment variable for wrangler commands.
-
-## Getting Your KV Namespace IDs
-
-If you haven't created KV namespaces yet:
-
-```bash
-# Create production namespace
-npx wrangler kv namespace create "FEAR_GREED_KV"
-
-# Create preview namespace
-npx wrangler kv namespace create "FEAR_GREED_KV" --preview
-```
-
-The output will show the namespace IDs. Add them to GitHub secrets.
 
 ## Setting Up D1 Database
 
@@ -83,17 +65,11 @@ npx wrangler d1 execute fear-greed --file=migrations/001_initial_schema.sql
 npx wrangler d1 execute fear-greed --file=migrations/002_migration_status.sql
 ```
 
-### 3. Automatic Data Migration
+### 3. Migration from KV (Completed)
 
-When you deploy the Worker for the first time with D1 configured, it will automatically:
-- Check if migration is needed
-- Migrate all data from KV to D1
-- Validate the migration
-- Mark migration as complete
+The migration from KV to D1 has been completed. The bot now uses D1 exclusively for data storage.
 
-The migration only runs once and is idempotent (safe to redeploy).
-
-**For detailed migration information, including schema diagrams, validation process, rollback procedures, and troubleshooting, see [MIGRATION.md](MIGRATION.md).**
+**For historical migration information, including schema diagrams and the migration process, see [MIGRATION.md](MIGRATION.md).**
 
 ### 4. Verify Database Setup
 
@@ -113,7 +89,7 @@ After pushing to the `main` branch:
 
 1. Check GitHub Actions tab to see deployment progress
    - The workflow will validate secrets, generate config, validate config, set secrets, deploy, and set the Telegram webhook
-   - **Note:** The initial validation step checks: `TELEGRAM_BOT_TOKEN_SECRET`, `ADMIN_CHAT_ID`, `FEAR_GREED_KV_NAMESPACE_ID`, `CF_API_TOKEN`, and `CF_ACCOUNT_ID`
+   - **Note:** The initial validation step checks: `TELEGRAM_BOT_TOKEN_SECRET`, `ADMIN_CHAT_ID`, `FEAR_GREED_D1_DATABASE_ID`, `CF_API_TOKEN`, and `CF_ACCOUNT_ID`
    - `TELEGRAM_WEBHOOK_SECRET` and `WORKER_URL` are validated in later steps (webhook setup will be skipped with a warning if missing)
 2. Once deployed, verify in Cloudflare Dashboard:
    - Workers & Pages → Your worker should be listed
@@ -164,18 +140,19 @@ curl -X POST "https://your-worker-url.workers.dev/deploy-notify" \
 - Check token hasn't expired
 - Ensure token has the following permissions:
   - Account: Workers Scripts: Edit
-  - Account: Workers KV Storage: Edit
+  - Account: D1: Edit
   - Account: Workers Secrets: Edit (required for secret management)
   - Account: Account Settings: Read
 
-### Deployment fails with "Namespace not found"
-- Verify `FEAR_GREED_KV_NAMESPACE_ID` matches your actual KV namespace ID
-- Ensure the namespace exists in your Cloudflare account
+### Deployment fails with "Database not found"
+- Verify `FEAR_GREED_D1_DATABASE_ID` matches your actual D1 database ID
+- Ensure the database exists in your Cloudflare account
+- Run database migrations if the database is newly created
 
 ### Configuration generation fails
 - Check all required secrets are set in GitHub
 - Verify secret names match exactly (case-sensitive)
-- Ensure `FEAR_GREED_KV_NAMESPACE_ID` is set (required)
+- Ensure `FEAR_GREED_D1_DATABASE_ID` is set (required)
 - Check workflow logs for specific error messages
 
 ### Secrets upload fails
@@ -196,7 +173,7 @@ curl -X POST "https://your-worker-url.workers.dev/deploy-notify" \
 - The workflow validates `wrangler.jsonc` before deployment using `wrangler deploy --dry-run`
 - This catches configuration errors before deployment
 - Check the error message for specific issues in `wrangler.jsonc`
-- Common issues: invalid KV namespace IDs, syntax errors, missing required fields (name, main, compatibility_date)
+- Common issues: invalid D1 database IDs, syntax errors, missing required fields (name, main, compatibility_date)
 - The generated `wrangler.jsonc` is also validated for required fields and non-empty values before the dry-run
 
 ### Deployment notification fails

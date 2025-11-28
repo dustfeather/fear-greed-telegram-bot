@@ -3,6 +3,7 @@
  */
 
 import { evaluateTradingSignal, formatTradingSignalMessage } from '../../../src/trading/services/signal-service.js';
+import { setActivePosition } from '../../../src/trading/services/position-service.js';
 import { TestRunner, createMockEnv, createMockFetch, assertEqual } from '../../utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -171,10 +172,7 @@ runner.test('Signal evaluation with active position shows SELL or HOLD', async (
   const chatId = 12345;
 
   // Set active position for user
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({
-    ticker: 'SPY',
-    entryPrice: 400
-  }));
+  await setActivePosition(env, chatId, 'SPY', 400);
 
   const currentPrice = 500; // Above all-time high (will trigger SELL)
   const fearGreedData = {
@@ -282,7 +280,7 @@ runner.test('SELL signal when price reaches all-time high threshold', async () =
 
   // Set active position for user
   const entryPrice = 400;
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   // Create market data where all-time high is 500
   // The current price should be at or above allTimeHigh * 0.99 to trigger SELL
@@ -332,7 +330,7 @@ runner.test('SELL signal when price reaches Bollinger upper target with profit',
   const env = createMockEnv();
   const chatId = 67890;
   const entryPrice = 90;
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   const marketData = createStaticMarketData({
     currentPrice: 150,
@@ -376,7 +374,7 @@ runner.test('HOLD signal when targets hit but position not profitable', async ()
   const env = createMockEnv();
   const chatId = 24680;
   const entryPrice = 220;
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   const currentPrice = 150;
   const marketData = createStaticMarketData({
@@ -418,7 +416,7 @@ runner.test('HOLD signal when price reaches allTimeHigh threshold but profit is 
   const env = createMockEnv();
   const chatId = 99999;
   const entryPrice = 500; // Entry at 500
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   const allTimeHigh = 500;
   const athThreshold = allTimeHigh * 0.99; // 495
@@ -461,7 +459,7 @@ runner.test('SELL signal when price reaches Bollinger upper threshold with profi
   const env = createMockEnv();
   const chatId = 88888;
   const entryPrice = 100;
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   // Create market data where current price is above bollingerUpper * 0.99
   // We'll use a static market data setup where we can control the indicators
@@ -509,7 +507,7 @@ runner.test('HOLD signal when price reaches Bollinger upper threshold but profit
   const env = createMockEnv();
   const chatId = 77777;
   const entryPrice = 200; // Entry at 200
-  await env.FEAR_GREED_KV.put(`active_position:${chatId}`, JSON.stringify({ ticker: 'SPY', entryPrice }));
+  await setActivePosition(env, chatId, 'SPY', entryPrice);
 
   const currentPrice = 150; // Below entry, so profit is negative
   const marketData = createStaticMarketData({

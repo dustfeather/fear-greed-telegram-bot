@@ -41,7 +41,7 @@ export async function addChatId(
 
     // Check if user already exists
     const existing = await db
-      .prepare('SELECT subscription_status FROM users WHERE chat_id = ?')
+      .prepare('SELECT CAST(subscription_status AS INTEGER) as subscription_status FROM users WHERE chat_id = ?')
       .bind(chatIdStr)
       .first<{ subscription_status: number }>();
 

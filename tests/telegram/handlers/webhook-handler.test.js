@@ -3,6 +3,8 @@
  */
 
 import index from '../../../src/index.js';
+import { sub } from '../../../src/user-management/services/subscription-service.js';
+import { recordExecution } from '../../../src/trading/services/execution-service.js';
 import { TestRunner, createMockEnv, createMockFetch, createTelegramUpdate, assertEqual } from '../../utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -87,10 +89,9 @@ runner.test('/start command', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assertEqual(telegramCallCount, 1, 'Should send subscription confirmation message');
 
-  // Verify user is subscribed
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assert(chatIds.includes(chatId), 'User should be subscribed');
+  // Verify user is subscribed (check D1)
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assert(chatIds.results.some(row => row.chat_id === String(chatId)), 'User should be subscribed');
 });
 
 // Test 2: /stop command
@@ -99,7 +100,7 @@ runner.test('/stop command', async () => {
   const chatId = 123456789;
 
   // Subscribe first
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([chatId]));
+  await sub(chatId, env);
 
   const update = createTelegramUpdate('/stop', chatId);
 
@@ -133,10 +134,9 @@ runner.test('/stop command', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assertEqual(telegramCallCount, 1, 'Should send unsubscription confirmation message');
 
-  // Verify user is unsubscribed
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assert(!chatIds.includes(chatId), 'User should be unsubscribed');
+  // Verify user is unsubscribed (check D1)
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assert(!chatIds.results.some(row => row.chat_id === String(chatId)), 'User should be unsubscribed');
 });
 
 // Test 3: /help command
@@ -368,15 +368,12 @@ runner.test('/execute command', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assert(telegramCallCount === 1, 'Should send execution confirmation message');
 
-  // Verify execution was recorded
-  const historyKey = `execution_history:${chatId}`;
-  const historyString = await env.FEAR_GREED_KV.get(historyKey);
-  assert(historyString !== null, 'Should have execution history');
-  const history = JSON.parse(historyString);
-  assert(history.length === 1, 'Should have one execution');
-  assert(history[0].ticker === 'SPY', 'Should have correct ticker');
-  assert(history[0].executionPrice === 400.50, 'Should have correct price');
-  assert(history[0].signalType === 'BUY', 'Should be BUY (no active position)');
+  // Verify execution was recorded in D1
+  const executions = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
+  assert(executions.results.length === 1, 'Should have one execution');
+  assert(executions.results[0].ticker === 'SPY', 'Should have correct ticker');
+  assert(executions.results[0].execution_price === 400.50, 'Should have correct price');
+  assert(executions.results[0].signal_type === 'BUY', 'Should be BUY (no active position)');
 });
 
 // Test 4e: /execute command with invalid format
@@ -452,17 +449,14 @@ runner.test('/execute command with valid date parameter', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assert(telegramCallCount === 1, 'Should send execution confirmation message');
 
-  // Verify execution was recorded with correct date
-  const historyKey = `execution_history:${chatId}`;
-  const historyString = await env.FEAR_GREED_KV.get(historyKey);
-  assert(historyString !== null, 'Should have execution history');
-  const history = JSON.parse(historyString);
-  assert(history.length === 1, 'Should have one execution');
-  assert(history[0].ticker === 'SPY', 'Should have correct ticker');
-  assert(history[0].executionPrice === 400.50, 'Should have correct price');
+  // Verify execution was recorded with correct date in D1
+  const executions = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
+  assert(executions.results.length === 1, 'Should have one execution');
+  assert(executions.results[0].ticker === 'SPY', 'Should have correct ticker');
+  assert(executions.results[0].execution_price === 400.50, 'Should have correct price');
 
   // Verify the date is correct (2024-01-15, start of day UTC)
-  const executionDate = new Date(history[0].executionDate);
+  const executionDate = new Date(executions.results[0].execution_date);
   assert(executionDate.getUTCFullYear() === 2024, 'Should have correct year');
   assert(executionDate.getUTCMonth() === 0, 'Should have correct month (January = 0)');
   assert(executionDate.getUTCDate() === 15, 'Should have correct day');
@@ -506,10 +500,9 @@ runner.test('/execute command with invalid date format', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assert(telegramCallCount === 1, 'Should send error message for invalid date format');
 
-  // Verify execution was NOT recorded
-  const historyKey = `execution_history:${chatId}`;
-  const historyString = await env.FEAR_GREED_KV.get(historyKey);
-  assert(historyString === null, 'Should not have execution history');
+  // Verify execution was NOT recorded in D1
+  const executions1 = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
+  assert(executions1.results.length === 0, 'Should not have execution history');
 });
 
 // Test 4h: /execute command with invalid date (e.g., Feb 30)
@@ -548,10 +541,9 @@ runner.test('/execute command with invalid date', async () => {
   assertEqual(result.ok, true, 'Should return ok: true');
   assert(telegramCallCount === 1, 'Should send error message for invalid date');
 
-  // Verify execution was NOT recorded
-  const historyKey = `execution_history:${chatId}`;
-  const historyString = await env.FEAR_GREED_KV.get(historyKey);
-  assert(historyString === null, 'Should not have execution history');
+  // Verify execution was NOT recorded in D1
+  const executions2 = await env.FEAR_GREED_D1.prepare('SELECT * FROM executions WHERE chat_id = ?').bind(String(chatId)).all();
+  assert(executions2.results.length === 0, 'Should not have execution history');
 });
 
 // Test 4i: /executions command
@@ -559,16 +551,8 @@ runner.test('/executions command', async () => {
   const env = createMockEnv();
   const chatId = 123456789;
 
-  // Record some executions first
-  const historyKey = `execution_history:${chatId}`;
-  await env.FEAR_GREED_KV.put(historyKey, JSON.stringify([
-    {
-      signalType: 'BUY',
-      ticker: 'SPY',
-      executionPrice: 400.50,
-      executionDate: Date.now()
-    }
-  ]));
+  // Record some executions first using the service
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50, undefined, Date.now());
 
   const update = createTelegramUpdate('/executions', chatId);
 
@@ -910,7 +894,9 @@ runner.test('/deploy-notify endpoint with valid token (Authorization header)', a
   const chatIds = [111111111, 222222222];
 
   // Set up subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  for (const chatId of chatIds) {
+    await sub(chatId, env);
+  }
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -957,7 +943,7 @@ runner.test('/deploy-notify endpoint with valid token (body)', async () => {
   const chatIds = [111111111];
 
   // Set up one subscriber
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  await sub(chatIds[0], env);
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -1050,7 +1036,7 @@ runner.test('/deploy-notify endpoint verifies message format', async () => {
   const env = createMockEnv();
   const chatIds = [111111111];
 
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  await sub(chatIds[0], env);
 
   let capturedMessage = null;
   const mockFetch = createMockFetch({
@@ -1106,8 +1092,7 @@ runner.test('/deploy-notify endpoint verifies message format', async () => {
 runner.test('/deploy-notify endpoint with no subscribers', async () => {
   const env = createMockEnv();
 
-  // Ensure no subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([]));
+  // No subscribers by default (empty D1 database)
 
   const request = new Request('http://localhost:8787/deploy-notify', {
     method: 'POST',

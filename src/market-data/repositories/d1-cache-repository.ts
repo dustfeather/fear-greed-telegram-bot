@@ -17,7 +17,7 @@ export async function get<T>(db: D1Database, key: string): Promise<T | null> {
     const now = Date.now();
 
     const row = await db
-      .prepare('SELECT cache_value, expires_at FROM cache WHERE cache_key = ?')
+      .prepare('SELECT cache_value, CAST(expires_at AS INTEGER) as expires_at FROM cache WHERE cache_key = ?')
       .bind(key)
       .first<{ cache_value: string; expires_at: number }>();
 

@@ -21,7 +21,7 @@ We take the security of the Fear and Greed Telegram Bot seriously. If you believ
 
 Instead, please report them via one of the following methods:
 
-1. **GitHub Security Advisories (Preferred)**: 
+1. **GitHub Security Advisories (Preferred)**:
    - Go to the [Security tab](https://github.com/dustfeather/fear-greed-telegram-bot/security) in this repository
    - Click "Report a vulnerability"
    - Fill out the security advisory form
@@ -59,7 +59,7 @@ When reporting a vulnerability, please include:
 ### For Users
 
 - **Keep your bot updated**: Always use the latest version
-- **Secure your secrets**: 
+- **Secure your secrets**:
   - Never commit `.dev.vars` or secrets to version control
   - Use strong, unique values for `TELEGRAM_WEBHOOK_SECRET`
   - Rotate secrets regularly
@@ -69,7 +69,7 @@ When reporting a vulnerability, please include:
 
 ### For Contributors
 
-- **Follow secure coding practices**: 
+- **Follow secure coding practices**:
   - Validate and sanitize all user inputs
   - Use parameterized queries and prepared statements where applicable
   - Implement proper authentication and authorization checks
@@ -86,7 +86,7 @@ When reporting a vulnerability, please include:
 - **Input Validation**: User inputs are validated before processing
 - **Error Handling**: Sensitive information is not exposed in error messages
 - **Cloudflare Workers**: Runs on Cloudflare's secure infrastructure
-- **KV Storage**: User data is stored securely in Cloudflare KV
+- **D1 Database**: User data is stored securely in Cloudflare D1 SQL database
 
 ### Areas of Focus
 

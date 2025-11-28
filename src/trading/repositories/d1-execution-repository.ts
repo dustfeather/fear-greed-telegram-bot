@@ -60,7 +60,7 @@ export async function getExecutionHistory(
   try {
     const chatIdStr = String(chatId);
 
-    let query = 'SELECT signal_type, ticker, execution_price, signal_price, execution_date FROM executions WHERE chat_id = ?';
+    let query = 'SELECT signal_type, ticker, CAST(execution_price AS REAL) as execution_price, CAST(signal_price AS REAL) as signal_price, CAST(execution_date AS INTEGER) as execution_date FROM executions WHERE chat_id = ?';
     const params: (string | number)[] = [chatIdStr];
 
     if (ticker) {
@@ -108,7 +108,7 @@ export async function getLatestExecution(
   try {
     const chatIdStr = String(chatId);
 
-    let query = 'SELECT signal_type, ticker, execution_price, signal_price, execution_date FROM executions WHERE chat_id = ?';
+    let query = 'SELECT signal_type, ticker, CAST(execution_price AS REAL) as execution_price, CAST(signal_price AS REAL) as signal_price, CAST(execution_date AS INTEGER) as execution_date FROM executions WHERE chat_id = ?';
     const params: (string | number)[] = [chatIdStr];
 
     if (ticker) {

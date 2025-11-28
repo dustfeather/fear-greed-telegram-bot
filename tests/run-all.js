@@ -22,7 +22,13 @@ const testFiles = [
   'trading/utils/holidays.test.js',
   'trading/utils/holidays-integration.test.js',
   'trading/services/execution-service.test.js',
-  'integration/worker-integration.test.js'
+  'integration/worker-integration.test.js',
+  // Property-based tests for D1 migration
+  'core/utils/d1-errors.test.js',
+  'user-management/repositories/d1-repositories.property.test.js',
+  'migration/data-migrator.property.test.js',
+  'migration/data-validator.property.test.js',
+  'core/performance/query-optimization.property.test.js'
 ];
 
 console.log('🚀 Running comprehensive e2e test suite\n');

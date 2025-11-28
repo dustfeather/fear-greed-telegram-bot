@@ -2,7 +2,7 @@
  * Admin command tests (/subscribers functionality)
  */
 
-import { listSubscribers } from '../../src/user-management/services/subscription-service.js';
+import { listSubscribers, sub } from '../../src/user-management/services/subscription-service.js';
 import { TestRunner, createMockEnv, createMockFetch, assertEqual, assertIncludes } from '../utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -32,8 +32,10 @@ runner.test('List subscribers with empty list', async () => {
 runner.test('List subscribers with multiple users', async () => {
   const env = createMockEnv();
 
-  // Add subscribers to KV
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222, 333333333]));
+  // Add subscribers
+  await sub(111111111, env);
+  await sub(222222222, env);
+  await sub(333333333, env);
 
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
@@ -82,7 +84,9 @@ runner.test('Automatically unsubscribe blocked users', async () => {
   const env = createMockEnv();
 
   // Add subscribers including a blocked user
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 'blocked_user', 333333333]));
+  await sub(111111111, env);
+  await sub('blocked_user', env);
+  await sub(333333333, env);
 
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
@@ -142,10 +146,9 @@ runner.test('Automatically unsubscribe blocked users', async () => {
   // Wait a bit for async unsubscribe to complete
   await new Promise(resolve => setTimeout(resolve, 100));
 
-  // Verify blocked user was unsubscribed from KV
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assert(!chatIds.includes('blocked_user'), 'Blocked user should be removed from KV');
+  // Verify blocked user was unsubscribed from D1
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assert(!chatIds.results.some(r => r.chat_id === 'blocked_user'), 'Blocked user should be removed from D1');
 });
 
 // Test 4: Format includes total count and numbered list
@@ -153,7 +156,8 @@ runner.test('Format includes total count and numbered list', async () => {
   const env = createMockEnv();
 
   // Add 2 subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222]));
+  await sub(111111111, env);
+  await sub(222222222, env);
 
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
@@ -202,12 +206,12 @@ runner.test('Format includes total count and numbered list', async () => {
 runner.test('Handle errors gracefully', async () => {
   const env = createMockEnv();
 
-  // Create a broken KV that throws errors
-  const brokenKV = {
-    get: async () => { throw new Error('KV error'); },
-    put: async () => { throw new Error('KV error'); }
+  // Create a broken D1 that throws errors
+  env.FEAR_GREED_D1 = {
+    prepare: () => ({
+      all: async () => { throw new Error('D1 error'); }
+    })
   };
-  env.FEAR_GREED_KV = brokenKV;
 
   const mockFetch = createMockFetch();
   global.fetch = mockFetch;
@@ -223,7 +227,9 @@ runner.test('Rate limiting with batch processing', async () => {
 
   // Add many subscribers (more than batch size of 30)
   const manyChatIds = Array.from({ length: 35 }, (_, i) => 100000000 + i);
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(manyChatIds));
+  for (const chatId of manyChatIds) {
+    await sub(chatId, env);
+  }
 
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
@@ -272,7 +278,9 @@ runner.test('Fallback to first_name/last_name when username is missing', async (
   const env = createMockEnv();
 
   // Add subscribers: one with username, one without username but with first+last name, one with only first name
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222, 333333333]));
+  await sub(111111111, env);
+  await sub(222222222, env);
+  await sub(333333333, env);
 
   const mockFetch = createMockFetch({
     'api.telegram.org': (options) => {
@@ -283,7 +291,8 @@ runner.test('Fallback to first_name/last_name when username is missing', async (
       if (body.chat_id !== undefined && body.text === undefined) {
         let result;
 
-        if (chatId === 111111111) {
+        // Compare as strings since D1 returns strings
+        if (String(chatId) === '111111111') {
           // User with username
           result = {
             id: chatId,
@@ -291,7 +300,7 @@ runner.test('Fallback to first_name/last_name when username is missing', async (
             username: 'user_with_username',
             first_name: 'John'
           };
-        } else if (chatId === 222222222) {
+        } else if (String(chatId) === '222222222') {
           // User without username but with first and last name
           result = {
             id: chatId,
@@ -299,7 +308,7 @@ runner.test('Fallback to first_name/last_name when username is missing', async (
             first_name: 'Jane',
             last_name: 'Doe'
           };
-        } else if (chatId === 333333333) {
+        } else if (String(chatId) === '333333333') {
           // User without username, only first name
           result = {
             id: chatId,

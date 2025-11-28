@@ -13,7 +13,7 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = join(__dirname, '..');
+const projectRoot = join(__dirname, '..', '..');
 
 const isWindows = platform() === 'win32';
 const workerUrl = process.env.WORKER_URL || 'http://localhost:8787';

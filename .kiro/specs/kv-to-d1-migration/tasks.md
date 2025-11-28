@@ -26,19 +26,19 @@
   - Include operation context and original error details in all error types
   - _Requirements: 3.7, 11.1, 11.4, 11.5_
 
-- [ ]* 3.1 Write property test for D1 error handling
+- [x]* 3.1 Write property test for D1 error handling
   - **Property 5: Database error handling**
   - **Validates: Requirements 3.7**
 
-- [ ]* 3.2 Write property test for error wrapping
+- [x]* 3.2 Write property test for error wrapping
   - **Property 18: D1 error wrapping**
   - **Validates: Requirements 11.1**
 
-- [ ]* 3.3 Write property test for constraint violation errors
+- [x]* 3.3 Write property test for constraint violation errors
   - **Property 20: Constraint violation error messages**
   - **Validates: Requirements 11.4**
 
-- [ ]* 3.4 Write property test for error logging
+- [x]* 3.4 Write property test for error logging
   - **Property 21: Error logging completeness**
   - **Validates: Requirements 11.5**
 
@@ -50,11 +50,11 @@
   - Return types matching existing KV repository interfaces
   - _Requirements: 3.1, 3.6, 3.7, 3.8_
 
-- [ ]* 4.1 Write property test for SQL injection prevention
+- [x]* 4.1 Write property test for SQL injection prevention
   - **Property 4: SQL injection prevention**
   - **Validates: Requirements 3.6**
 
-- [ ]* 4.2 Write property test for service API compatibility
+- [x]* 4.2 Write property test for service API compatibility
   - **Property 12: Service API compatibility**
   - **Validates: Requirements 8.2**
 
@@ -112,39 +112,39 @@
   - Generate detailed migration summary report
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 13.6, 14.2_
 
-- [ ]* 10.1 Write property test for migration idempotency
+- [x]* 10.1 Write property test for migration idempotency
   - **Property 3: Migration idempotency**
   - **Validates: Requirements 2.4**
 
-- [ ]* 10.2 Write property test for subscription migration completeness
+- [x]* 10.2 Write property test for subscription migration completeness
   - **Property 6: Subscription data migration completeness**
   - **Validates: Requirements 4.1**
 
-- [ ]* 10.3 Write property test for watchlist migration completeness
+- [x]* 10.3 Write property test for watchlist migration completeness
   - **Property 7: Watchlist data migration completeness**
   - **Validates: Requirements 4.2**
 
-- [ ]* 10.4 Write property test for execution migration completeness
+- [x]* 10.4 Write property test for execution migration completeness
   - **Property 8: Execution history migration completeness**
   - **Validates: Requirements 4.3**
 
-- [ ]* 10.5 Write property test for position migration completeness
+- [x]* 10.5 Write property test for position migration completeness
   - **Property 9: Active position migration completeness**
   - **Validates: Requirements 4.4**
 
-- [ ]* 10.6 Write property test for cache migration completeness
+- [x]* 10.6 Write property test for cache migration completeness
   - **Property 10: Cache data migration completeness**
   - **Validates: Requirements 4.5**
 
-- [ ]* 10.7 Write property test for migration error resilience
+- [x]* 10.7 Write property test for migration error resilience
   - **Property 11: Migration error resilience**
   - **Validates: Requirements 4.6**
 
-- [ ]* 10.8 Write property test for batch operations using transactions
+- [x]* 10.8 Write property test for batch operations using transactions
   - **Property 27: Batch operations use transactions**
   - **Validates: Requirements 13.6**
 
-- [ ]* 10.9 Write property test for related operations using transactions
+- [x]* 10.9 Write property test for related operations using transactions
   - **Property 28: Related operations use transactions**
   - **Validates: Requirements 14.2**
 
@@ -157,19 +157,19 @@
   - Generate detailed validation report with discrepancies
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6_
 
-- [ ]* 11.1 Write property test for chat ID validation
+- [x]* 11.1 Write property test for chat ID validation
   - **Property 13: Chat ID migration validation**
   - **Validates: Requirements 9.1**
 
-- [ ]* 11.2 Write property test for watchlist count validation
+- [x]* 11.2 Write property test for watchlist count validation
   - **Property 14: Watchlist count validation**
   - **Validates: Requirements 9.2**
 
-- [ ]* 11.3 Write property test for execution count validation
+- [x]* 11.3 Write property test for execution count validation
   - **Property 15: Execution count validation**
   - **Validates: Requirements 9.3**
 
-- [ ]* 11.4 Write property test for position count validation
+- [x]* 11.4 Write property test for position count validation
   - **Property 16: Active position count validation**
   - **Validates: Requirements 9.4**
 
@@ -224,7 +224,7 @@
   - Run `npm run type-check` to verify no TypeScript errors
   - Ensure all tests pass, ask the user if questions arise
 
-- [ ]* 19. Write integration tests for D1 repositories
+- [x]* 19. Write integration tests for D1 repositories
   - Create test files for each D1 repository
   - Test all CRUD operations
   - Test foreign key constraint enforcement
@@ -235,19 +235,19 @@
   - Clean up test data after each test run
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6, 15.7_
 
-- [ ]* 19.1 Write property test for foreign key constraints
+- [x]* 19.1 Write property test for foreign key constraints
   - **Property 1: Foreign key constraint enforcement**
   - **Validates: Requirements 1.6**
 
-- [ ]* 19.2 Write property test for unique constraints
+- [x]* 19.2 Write property test for unique constraints
   - **Property 2: Unique constraint enforcement**
   - **Validates: Requirements 1.8**
 
-- [ ]* 19.3 Write property test for transaction rollback
+- [x]* 19.3 Write property test for transaction rollback
   - **Property 19: Transaction rollback on failure**
   - **Validates: Requirements 11.3**
 
-- [ ]* 20. Write property tests for query optimization
+- [x]* 20. Write property tests for query optimization
   - Test index usage for user queries (chat_id)
   - Test index usage for execution queries (chat_id, execution_date)
   - Test index usage for watchlist queries (chat_id)
@@ -255,23 +255,23 @@
   - Test index usage for cache queries (cache_key, expires_at)
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
 
-- [ ]* 20.1 Write property test for user query indexes
+- [x]* 20.1 Write property test for user query indexes
   - **Property 22: Index usage for user queries**
   - **Validates: Requirements 13.1**
 
-- [ ]* 20.2 Write property test for execution query indexes
+- [x]* 20.2 Write property test for execution query indexes
   - **Property 23: Index usage for execution queries**
   - **Validates: Requirements 13.2**
 
-- [ ]* 20.3 Write property test for watchlist query indexes
+- [x]* 20.3 Write property test for watchlist query indexes
   - **Property 24: Index usage for watchlist queries**
   - **Validates: Requirements 13.3**
 
-- [ ]* 20.4 Write property test for position query indexes
+- [x]* 20.4 Write property test for position query indexes
   - **Property 25: Index usage for position queries**
   - **Validates: Requirements 13.4**
 
-- [ ]* 20.5 Write property test for cache query indexes
+- [x]* 20.5 Write property test for cache query indexes
   - **Property 26: Index usage for cache queries**
   - **Validates: Requirements 13.5**
 
@@ -312,7 +312,7 @@
   - Check error rates and query performance
   - Ensure all tests pass, ask the user if questions arise
 
-- [ ] 26. Manual KV cleanup (Post-Migration)
+- [x] 26. Manual KV cleanup (Post-Migration)
   - Manually delete KV namespace from Cloudflare dashboard after verifying D1 is working
   - Remove KV binding from `scripts/generate-wrangler-config.js`
   - Remove KV environment variables from configuration

@@ -65,7 +65,6 @@ Scan the QR code above to open the bot in Telegram, or search for `@CNN_FEAR_GRE
       - `TELEGRAM_BOT_TOKEN_SECRET`: Your Telegram bot token (get from [@BotFather](https://t.me/BotFather))
       - `TELEGRAM_WEBHOOK_SECRET`: A secure random string for verifying webhook requests (generate using `openssl rand -hex 32`)
       - `ADMIN_CHAT_ID`: Your chat ID for error notifications (optional)
-      - `FEAR_GREED_KV_NAMESPACE_ID`: KV namespace ID (optional for local dev)
       - `FEAR_GREED_D1_DATABASE_ID`: D1 database ID (required for production)
 
 4. Start the development server:
@@ -131,9 +130,8 @@ The project follows a modular architecture organized by feature domains:
 - `src/scheduler/` - Scheduled event processing
   - `handlers/` - Cron job handler for automated broadcasts
 
-- `src/migration/` - Data migration utilities
-  - Automatic KV to D1 migration on first deployment
-  - See [MIGRATION.md](MIGRATION.md) for details
+- `src/migration/` - Data migration utilities (legacy)
+  - See [MIGRATION.md](MIGRATION.md) for migration details
 
 ### Entry Point
 - `src/index.ts` - Main Cloudflare Worker entry point

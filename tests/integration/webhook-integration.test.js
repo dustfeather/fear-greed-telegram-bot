@@ -103,10 +103,9 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
 
   await index.fetch(startRequest, env, { waitUntil: () => {} });
 
-  // Verify subscription
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assertIncludes(chatIds, chatId, 'User should be subscribed');
+  // Verify subscription in D1
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assertIncludes(chatIds.results.map(r => Number(r.chat_id)), chatId, 'User should be subscribed');
 
   // Step 2: Get current index
   const nowUpdate = createTelegramUpdate('/now', chatId);
@@ -134,10 +133,9 @@ runner.test('Complete user flow: subscribe -> get index -> unsubscribe', async (
 
   await index.fetch(stopRequest, env, { waitUntil: () => {} });
 
-  // Verify unsubscription
-  const chatIdsStringAfter = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIdsAfter = JSON.parse(chatIdsStringAfter || '[]');
-  assertNotIncludes(chatIdsAfter, chatId, 'User should be unsubscribed');
+  // Verify unsubscription in D1
+  const chatIdsAfter = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assertNotIncludes(chatIdsAfter.results.map(r => Number(r.chat_id)), chatId, 'User should be unsubscribed');
 
   // Verify messages were sent
   assert(telegramMessages.length >= 3, 'Should send at least 3 messages');
@@ -215,10 +213,9 @@ runner.test('Multiple users subscribe and receive alerts', async () => {
     await index.fetch(request, env, { waitUntil: () => {} });
   }
 
-  // Verify all subscribed
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assertEqual(chatIds.length, 3, 'Should have 3 subscribers');
+  // Verify all subscribed in D1
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assertEqual(chatIds.results.length, 3, 'Should have 3 subscribers');
 
   // Trigger scheduled event (fear rating should send to all)
   const { handleScheduled } = await import('../../src/scheduler/handlers/scheduled-handler.js');
@@ -274,11 +271,10 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
   });
   await index.fetch(request2, env, { waitUntil: () => {} });
 
-  // Verify still only one subscription
-  const chatIdsString = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIds = JSON.parse(chatIdsString);
-  assertEqual(chatIds.length, 1, 'Should have only 1 subscription');
-  assertEqual(chatIds.filter(id => id === chatId).length, 1, 'Should have only one instance');
+  // Verify still only one subscription in D1
+  const chatIds = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assertEqual(chatIds.results.length, 1, 'Should have only 1 subscription');
+  assertEqual(chatIds.results.filter(row => Number(row.chat_id) === chatId).length, 1, 'Should have only one instance');
 
   // Unsubscribe once
   const update3 = createTelegramUpdate('/stop', chatId);
@@ -292,10 +288,9 @@ runner.test('Subscribe twice, unsubscribe once', async () => {
   });
   await index.fetch(request3, env, { waitUntil: () => {} });
 
-  // Verify unsubscribed
-  const chatIdsStringAfter = await env.FEAR_GREED_KV.get('chat_ids');
-  const chatIdsAfter = JSON.parse(chatIdsStringAfter || '[]');
-  assertEqual(chatIdsAfter.length, 0, 'Should have 0 subscriptions');
+  // Verify unsubscribed in D1
+  const chatIdsAfter = await env.FEAR_GREED_D1.prepare('SELECT chat_id FROM users WHERE subscription_status = 1').all();
+  assertEqual(chatIdsAfter.results.length, 0, 'Should have 0 subscriptions');
 });
 
 // Test 4: Help command shows all commands

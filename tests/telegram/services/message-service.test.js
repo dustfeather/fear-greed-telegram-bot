@@ -3,6 +3,7 @@
  */
 
 import { sendTelegramMessage, sendHelpMessage, broadcastToAllSubscribers } from '../../../src/telegram/services/message-service.js';
+import { sub } from '../../../src/user-management/services/subscription-service.js';
 import { TestRunner, createMockEnv, createMockFetch, assertSuccess, assertFailure, assertEqual } from '../../utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -151,9 +152,7 @@ runner.test('Broadcast to no subscribers', async () => {
   const env = createMockEnv();
   const message = 'Test broadcast message';
 
-  // Ensure no subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([]));
-
+  // No subscribers by default (empty D1 database)
   const result = await broadcastToAllSubscribers(message, env);
 
   assertEqual(result.totalSubscribers, 0, 'Should have 0 subscribers');
@@ -169,7 +168,7 @@ runner.test('Broadcast to single subscriber', async () => {
   const message = 'Test broadcast message';
 
   // Set up one subscriber
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([chatId]));
+  await sub(chatId, env);
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -202,7 +201,9 @@ runner.test('Broadcast to multiple subscribers', async () => {
   const message = 'Test broadcast message';
 
   // Set up multiple subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  for (const chatId of chatIds) {
+    await sub(chatId, env);
+  }
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -235,7 +236,9 @@ runner.test('Broadcast with partial failures', async () => {
   const message = 'Test broadcast message';
 
   // Set up multiple subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  for (const chatId of chatIds) {
+    await sub(chatId, env);
+  }
 
   let callCount = 0;
   const mockFetch = createMockFetch({
@@ -271,7 +274,7 @@ runner.test('Broadcast with partial failures', async () => {
   assertEqual(result.successful, 2, 'Should have 2 successful sends');
   assertEqual(result.failed, 1, 'Should have 1 failed send');
   assertEqual(result.errors.length, 1, 'Should have 1 error');
-  assertEqual(result.errors[0].chatId, 222222222, 'Error should be for chatId 222222222');
+  assertEqual(String(result.errors[0].chatId), '222222222', 'Error should be for chatId 222222222');
 });
 
 // Test 10: Broadcast with network errors
@@ -281,7 +284,9 @@ runner.test('Broadcast with network errors', async () => {
   const message = 'Test broadcast message';
 
   // Set up multiple subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify(chatIds));
+  for (const chatId of chatIds) {
+    await sub(chatId, env);
+  }
 
   let callCount = 0;
   const mockFetch = async (url, options) => {
@@ -290,8 +295,8 @@ runner.test('Broadcast with network errors', async () => {
       callCount++;
       // Extract chat_id from request body to determine which call should fail
       const body = JSON.parse(options?.body || '{}');
-      // Throw error for second chat ID
-      if (body.chat_id === chatIds[1]) {
+      // Throw error for second chat ID (compare as strings since D1 returns strings)
+      if (String(body.chat_id) === String(chatIds[1])) {
         throw new Error('Network error');
       }
       return {
@@ -316,17 +321,18 @@ runner.test('Broadcast with network errors', async () => {
   assert(result.errors[0].error.includes('Network error'), 'Error should mention network error');
 });
 
-// Test 11: Broadcast handles KV errors
-runner.test('Broadcast handles KV errors', async () => {
+// Test 11: Broadcast handles D1 errors
+runner.test('Broadcast handles D1 errors', async () => {
   const env = createMockEnv();
   const message = 'Test broadcast message';
 
-  // Create a broken KV that throws errors
-  env.FEAR_GREED_KV = {
-    get: async () => { throw new Error('KV error'); },
-    put: async () => {},
-    delete: async () => {},
-    list: async () => ({ keys: [] })
+  // Create a broken D1 that throws errors
+  env.FEAR_GREED_D1 = {
+    prepare: () => ({
+      bind: () => ({
+        all: async () => { throw new Error('D1 error'); }
+      })
+    })
   };
 
   const result = await broadcastToAllSubscribers(message, env);
@@ -335,8 +341,8 @@ runner.test('Broadcast handles KV errors', async () => {
   assertEqual(result.successful, 0, 'Should have 0 successful sends');
   assertEqual(result.failed, 0, 'Should have 0 failed sends');
   assertEqual(result.errors.length, 1, 'Should have 1 error');
-  // Error message might be wrapped by KV utilities
-  assert(result.errors[0].error.includes('KV error') || result.errors[0].error.includes('Failed to get chat IDs'), 'Error should mention KV error');
+  // Error message is wrapped by D1 utilities
+  assert(result.errors[0].error.includes('D1 operation failed') || result.errors[0].error.includes('D1 error'), 'Error should mention D1 error');
 });
 
 // Run tests

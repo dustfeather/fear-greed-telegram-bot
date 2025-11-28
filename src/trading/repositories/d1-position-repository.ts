@@ -21,7 +21,7 @@ export async function getActivePosition(
     const chatIdStr = String(chatId);
 
     const row = await db
-      .prepare('SELECT ticker, entry_price FROM active_positions WHERE chat_id = ? LIMIT 1')
+      .prepare('SELECT ticker, CAST(entry_price AS REAL) as entry_price FROM active_positions WHERE chat_id = ? LIMIT 1')
       .bind(chatIdStr)
       .first<{ ticker: string; entry_price: number }>();
 

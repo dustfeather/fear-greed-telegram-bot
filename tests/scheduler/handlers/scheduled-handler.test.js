@@ -3,6 +3,7 @@
  */
 
 import { handleScheduled } from '../../../src/scheduler/handlers/scheduled-handler.js';
+import { sub } from '../../../src/user-management/services/subscription-service.js';
 import { TestRunner, createMockEnv, createMockFetch, assertEqual } from '../../utils/test-helpers.js';
 import assert from 'node:assert';
 
@@ -114,7 +115,9 @@ runner.test('Send to all subscribers on fear rating', async () => {
   };
 
   // Add subscribers
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222, 333333333]));
+  await sub(111111111, env);
+  await sub(222222222, env);
+  await sub(333333333, env);
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -177,7 +180,8 @@ runner.test('Send to all subscribers on extreme fear rating', async () => {
     }
   };
 
-  await env.FEAR_GREED_KV.put('chat_ids', JSON.stringify([111111111, 222222222]));
+  await sub(111111111, env);
+  await sub(222222222, env);
 
   let telegramCallCount = 0;
   const mockFetch = createMockFetch({
@@ -316,7 +320,7 @@ runner.test('Verify message format includes chart URL', async () => {
 
   // Initialize watchlist for test user (defaults to SPY)
   const { getWatchlist } = await import('../../../src/user-management/services/watchlist-service.js');
-  await getWatchlist(env.FEAR_GREED_KV, chatId);
+  await getWatchlist(env, chatId);
 
   const capturedMessages = [];
   const mockFetch = createMockFetch({

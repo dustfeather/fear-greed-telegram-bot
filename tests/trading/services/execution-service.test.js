@@ -14,9 +14,9 @@ runner.test('Record execution', async () => {
   const env = createMockEnv();
   const chatId = 12345;
 
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
 
-  const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId);
+  const history = await getExecutionHistory(env, chatId);
   assert(history.length === 1, 'Should have one execution');
   assert(history[0].signalType === 'BUY', 'Should be BUY signal');
   assert(history[0].ticker === 'SPY', 'Should have correct ticker');
@@ -28,12 +28,12 @@ runner.test('Get execution history', async () => {
   const env = createMockEnv();
   const chatId = 12345;
 
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
   // Add small delay to ensure different timestamps
   await new Promise(resolve => setTimeout(resolve, 10));
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'SELL', 'SPY', 450.00);
+  await recordExecution(env, chatId, 'SELL', 'SPY', 450.00);
 
-  const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId);
+  const history = await getExecutionHistory(env, chatId);
   assert(history.length === 2, 'Should have two executions');
   assert(history[0].signalType === 'SELL', 'Should be sorted newest first');
   assert(history[1].signalType === 'BUY', 'Should have BUY as second');
@@ -44,14 +44,14 @@ runner.test('Get execution history filtered by ticker', async () => {
   const env = createMockEnv();
   const chatId = 12345;
 
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'AAPL', 150.00);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'AAPL', 150.00);
 
-  const spyHistory = await getExecutionHistory(env.FEAR_GREED_KV, chatId, 'SPY');
+  const spyHistory = await getExecutionHistory(env, chatId, 'SPY');
   assert(spyHistory.length === 1, 'Should have one SPY execution');
   assert(spyHistory[0].ticker === 'SPY', 'Should be SPY');
 
-  const aaplHistory = await getExecutionHistory(env.FEAR_GREED_KV, chatId, 'AAPL');
+  const aaplHistory = await getExecutionHistory(env, chatId, 'AAPL');
   assert(aaplHistory.length === 1, 'Should have one AAPL execution');
   assert(aaplHistory[0].ticker === 'AAPL', 'Should be AAPL');
 });
@@ -61,12 +61,12 @@ runner.test('Get latest execution', async () => {
   const env = createMockEnv();
   const chatId = 12345;
 
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
   // Add small delay to ensure different timestamps
   await new Promise(resolve => setTimeout(resolve, 10));
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'SELL', 'SPY', 450.00);
+  await recordExecution(env, chatId, 'SELL', 'SPY', 450.00);
 
-  const latest = await getLatestExecution(env.FEAR_GREED_KV, chatId);
+  const latest = await getLatestExecution(env, chatId);
   assert(latest !== null, 'Should have latest execution');
   assert(latest.signalType === 'SELL', 'Should be most recent (SELL)');
 });
@@ -102,11 +102,11 @@ runner.test('Per-user execution tracking', async () => {
   const chatId1 = 11111;
   const chatId2 = 22222;
 
-  await recordExecution(env.FEAR_GREED_KV, chatId1, 'BUY', 'SPY', 400.50);
-  await recordExecution(env.FEAR_GREED_KV, chatId2, 'BUY', 'AAPL', 150.00);
+  await recordExecution(env, chatId1, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId2, 'BUY', 'AAPL', 150.00);
 
-  const history1 = await getExecutionHistory(env.FEAR_GREED_KV, chatId1);
-  const history2 = await getExecutionHistory(env.FEAR_GREED_KV, chatId2);
+  const history1 = await getExecutionHistory(env, chatId1);
+  const history2 = await getExecutionHistory(env, chatId2);
 
   assert(history1.length === 1, 'User 1 should have one execution');
   assert(history2.length === 1, 'User 2 should have one execution');
@@ -120,17 +120,17 @@ runner.test('Active position management', async () => {
   const chatId = 12345;
 
   // Set active position
-  await setActivePosition(env.FEAR_GREED_KV, chatId, 'SPY', 400.50);
+  await setActivePosition(env, chatId, 'SPY', 400.50);
 
-  const position = await getActivePosition(env.FEAR_GREED_KV, chatId);
+  const position = await getActivePosition(env, chatId);
   assert(position !== null, 'Should have active position');
   assert(position.ticker === 'SPY', 'Should have correct ticker');
   assert(position.entryPrice === 400.50, 'Should have correct entry price');
 
   // Clear active position
-  await clearActivePosition(env.FEAR_GREED_KV, chatId);
+  await clearActivePosition(env, chatId);
 
-  const clearedPosition = await getActivePosition(env.FEAR_GREED_KV, chatId);
+  const clearedPosition = await getActivePosition(env, chatId);
   assert(clearedPosition === null, 'Should not have active position after clearing');
 });
 
@@ -140,30 +140,26 @@ runner.test('Trading frequency limit (calendar month)', async () => {
   const chatId = 12345;
 
   // No executions - should allow
-  const canTrade1 = await canTrade(env.FEAR_GREED_KV, chatId);
+  const canTrade1 = await canTrade(env, chatId);
   assert(canTrade1 === true, 'Should allow trading when no executions');
 
   // Record execution in current month
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
 
   // Should not allow (same calendar month)
-  const canTrade2 = await canTrade(env.FEAR_GREED_KV, chatId);
+  const canTrade2 = await canTrade(env, chatId);
   assert(canTrade2 === false, 'Should not allow trading in the same calendar month');
 
-  // Record execution in previous month
+  // Test with a fresh environment - execution from last month only
+  const env2 = createMockEnv();
   const lastMonth = new Date();
   lastMonth.setUTCMonth(lastMonth.getUTCMonth() - 1);
-  const lastMonthExecution = {
-    signalType: 'BUY',
-    ticker: 'SPY',
-    executionPrice: 400.50,
-    executionDate: lastMonth.getTime()
-  };
-  const historyKey = `execution_history:${chatId}`;
-  await env.FEAR_GREED_KV.put(historyKey, JSON.stringify([lastMonthExecution]));
+
+  // Record execution from last month
+  await recordExecution(env2, chatId, 'BUY', 'SPY', 400.50, undefined, lastMonth.getTime());
 
   // Should allow (different calendar month)
-  const canTrade3 = await canTrade(env.FEAR_GREED_KV, chatId);
+  const canTrade3 = await canTrade(env2, chatId);
   assert(canTrade3 === true, 'Should allow trading in a different calendar month');
 });
 
@@ -172,7 +168,7 @@ runner.test('Empty execution history', async () => {
   const env = createMockEnv();
   const chatId = 12345;
 
-  const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId);
+  const history = await getExecutionHistory(env, chatId);
   assert(history.length === 0, 'Should have no executions');
 
   const formatted = formatExecutionHistory([]);
@@ -188,9 +184,9 @@ runner.test('Record execution with custom date', async () => {
   const customDate = new Date(Date.UTC(2024, 0, 15)); // January 15, 2024
   const customTimestamp = customDate.getTime();
 
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50, undefined, customTimestamp);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50, undefined, customTimestamp);
 
-  const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId);
+  const history = await getExecutionHistory(env, chatId);
   assert(history.length === 1, 'Should have one execution');
   assert(history[0].executionDate === customTimestamp, 'Should have custom execution date');
 
@@ -209,10 +205,10 @@ runner.test('Record execution without custom date', async () => {
   const chatId = 12345;
 
   const beforeTime = Date.now();
-  await recordExecution(env.FEAR_GREED_KV, chatId, 'BUY', 'SPY', 400.50);
+  await recordExecution(env, chatId, 'BUY', 'SPY', 400.50);
   const afterTime = Date.now();
 
-  const history = await getExecutionHistory(env.FEAR_GREED_KV, chatId);
+  const history = await getExecutionHistory(env, chatId);
   assert(history.length === 1, 'Should have one execution');
   assert(history[0].executionDate >= beforeTime, 'Should have execution date after beforeTime');
   assert(history[0].executionDate <= afterTime, 'Should have execution date before afterTime');

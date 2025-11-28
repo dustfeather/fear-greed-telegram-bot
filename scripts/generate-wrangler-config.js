@@ -38,11 +38,6 @@ const config = {
       "head_sampling_rate": 1
     }
   },
-  "tail_consumers": [
-    {
-      "service": "cf-tail-worker"
-    }
-  ],
   triggers: {
     crons: [
       '0 9 * * 1-5',     // 09:00 weekdays (Mon-Fri)
