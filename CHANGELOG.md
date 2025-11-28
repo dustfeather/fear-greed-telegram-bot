@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed worker integration tests to handle missing `TELEGRAM_WEBHOOK_SECRET` gracefully: tests now expect 401 responses when webhook secret is not configured instead of failing
 - Fixed CI test job to create `.dev.vars` file from GitHub secrets, allowing tests to properly authenticate with the test worker
 - Fixed Jest global teardown error: added error handling for ESRCH when stopping Wrangler dev server (process may have already exited)
+- Fixed Jest hanging after test completion: improved global teardown to properly wait for Wrangler process exit and clean up all stdio handles
 
 ### Removed
 - Custom TestRunner class and assertion helpers
