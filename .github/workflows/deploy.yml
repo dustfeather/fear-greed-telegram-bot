@@ -33,6 +33,28 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Create .dev.vars for Tests
+        shell: bash
+        env:
+          TELEGRAM_BOT_TOKEN_SECRET: ${{ secrets.TELEGRAM_BOT_TOKEN_SECRET }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+          FEAR_GREED_D1_DATABASE_ID: ${{ secrets.FEAR_GREED_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+
+          # Create .dev.vars file with secrets for testing
+          # This allows the test worker to authenticate properly
+          cat > .dev.vars << EOF
+          # Auto-generated for CI testing
+          TELEGRAM_BOT_TOKEN_SECRET=${TELEGRAM_BOT_TOKEN_SECRET:-}
+          TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+          ADMIN_CHAT_ID=${ADMIN_CHAT_ID:-}
+          FEAR_GREED_D1_DATABASE_ID=${FEAR_GREED_D1_DATABASE_ID:-}
+          EOF
+
+          echo "✓ .dev.vars created for testing"
+
       - name: Run Tests
         run: npm test
         continue-on-error: false

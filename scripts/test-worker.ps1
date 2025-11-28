@@ -325,26 +325,43 @@ if ($TestChatId -eq "123456789") {
 }
 Write-Host ""
 
-# Test 1: POST /start command
-Test-Post "POST /start command" (Get-TelegramPayload "/start") 200
+# Determine if we should run authenticated tests
+if ([string]::IsNullOrEmpty($script:WebhookSecret)) {
+    Write-Host "⚠️  Skipping authenticated tests - TELEGRAM_WEBHOOK_SECRET not configured" -ForegroundColor Yellow
+    Write-Host "   Only testing unauthorized access (401 responses)" -ForegroundColor Yellow
+    Write-Host ""
 
-# Test 2: POST /stop command
-Test-Post "POST /stop command" (Get-TelegramPayload "/stop") 200
+    # Test 1: POST without webhook secret (should return 401)
+    Test-Post "POST /start without auth (unauthorized)" (Get-TelegramPayload "/start") 401 -SkipAuth
 
-# Test 3: POST /help command
-Test-Post "POST /help command" (Get-TelegramPayload "/help") 200
+    # Test 2: POST /help without auth (should return 401)
+    Test-Post "POST /help without auth (unauthorized)" (Get-TelegramPayload "/help") 401 -SkipAuth
 
-# Test 4: POST /now command
-Test-Post "POST /now command" (Get-TelegramPayload "/now") 200
+    # Test 3: POST invalid payload without auth (should return 401)
+    Test-Post "POST invalid payload without auth (unauthorized)" (Get-InvalidPayload) 401 -SkipAuth
+} else {
+    # Run full authenticated tests
+    # Test 1: POST /start command
+    Test-Post "POST /start command" (Get-TelegramPayload "/start") 200
 
-# Test 5: POST unknown command
-Test-Post "POST unknown command" (Get-TelegramPayload "/unknown") 200
+    # Test 2: POST /stop command
+    Test-Post "POST /stop command" (Get-TelegramPayload "/stop") 200
 
-# Test 6: POST invalid payload
-Test-Post "POST invalid payload" (Get-InvalidPayload) 200
+    # Test 3: POST /help command
+    Test-Post "POST /help command" (Get-TelegramPayload "/help") 200
 
-# Test 6b: POST without webhook secret (should return 401)
-Test-Post "POST without webhook secret (unauthorized)" (Get-TelegramPayload "/start") 401 -SkipAuth
+    # Test 4: POST /now command
+    Test-Post "POST /now command" (Get-TelegramPayload "/now") 200
+
+    # Test 5: POST unknown command
+    Test-Post "POST unknown command" (Get-TelegramPayload "/unknown") 200
+
+    # Test 6: POST invalid payload
+    Test-Post "POST invalid payload" (Get-InvalidPayload) 200
+
+    # Test 6b: POST without webhook secret (should return 401)
+    Test-Post "POST without webhook secret (unauthorized)" (Get-TelegramPayload "/start") 401 -SkipAuth
+}
 
 # Test 7: GET request (should return 405)
 Test-Get "GET request (Method not allowed)" 405

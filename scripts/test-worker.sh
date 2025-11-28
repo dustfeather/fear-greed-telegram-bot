@@ -286,26 +286,43 @@ else
 fi
 echo ""
 
-# Test 1: POST /start command
-test_post "POST /start command" "$(telegram_payload "/start")" 200
+# Determine if we should run authenticated tests
+if [ -z "$WEBHOOK_SECRET" ]; then
+    echo -e "${YELLOW}⚠️  Skipping authenticated tests - TELEGRAM_WEBHOOK_SECRET not configured${NC}"
+    echo -e "${YELLOW}   Only testing unauthorized access (401 responses)${NC}"
+    echo ""
 
-# Test 2: POST /stop command
-test_post "POST /stop command" "$(telegram_payload "/stop")" 200
+    # Test 1: POST without webhook secret (should return 401)
+    test_post "POST /start without auth (unauthorized)" "$(telegram_payload "/start")" 401 "true"
 
-# Test 3: POST /help command
-test_post "POST /help command" "$(telegram_payload "/help")" 200
+    # Test 2: POST /help without auth (should return 401)
+    test_post "POST /help without auth (unauthorized)" "$(telegram_payload "/help")" 401 "true"
 
-# Test 4: POST /now command
-test_post "POST /now command" "$(telegram_payload "/now")" 200
+    # Test 3: POST invalid payload without auth (should return 401)
+    test_post "POST invalid payload without auth (unauthorized)" "$(invalid_payload)" 401 "true"
+else
+    # Run full authenticated tests
+    # Test 1: POST /start command
+    test_post "POST /start command" "$(telegram_payload "/start")" 200
 
-# Test 5: POST unknown command
-test_post "POST unknown command" "$(telegram_payload "/unknown")" 200
+    # Test 2: POST /stop command
+    test_post "POST /stop command" "$(telegram_payload "/stop")" 200
 
-# Test 6: POST invalid payload
-test_post "POST invalid payload" "$(invalid_payload)" 200
+    # Test 3: POST /help command
+    test_post "POST /help command" "$(telegram_payload "/help")" 200
 
-# Test 6b: POST without webhook secret (should return 401)
-test_post "POST without webhook secret (unauthorized)" "$(telegram_payload "/start")" 401 "true"
+    # Test 4: POST /now command
+    test_post "POST /now command" "$(telegram_payload "/now")" 200
+
+    # Test 5: POST unknown command
+    test_post "POST unknown command" "$(telegram_payload "/unknown")" 200
+
+    # Test 6: POST invalid payload
+    test_post "POST invalid payload" "$(invalid_payload)" 200
+
+    # Test 6b: POST without webhook secret (should return 401)
+    test_post "POST without webhook secret (unauthorized)" "$(telegram_payload "/start")" 401 "true"
+fi
 
 # Test 7: GET request (should return 405)
 test_get "GET request (Method not allowed)" 405
