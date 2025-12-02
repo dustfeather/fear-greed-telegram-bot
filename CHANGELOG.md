@@ -34,7 +34,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - KV to D1 migration code and documentation (no longer needed after migration completion)
 
 ### Dependencies
-- Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251128.0`
+- Bumped `@cloudflare/workers-types` from `^4.20251126.0` to `^4.20251202.0`
+- Bumped `ts-jest` from `^29.4.5` to `^29.4.6`
+- Bumped `tsx` from `^4.20.6` to `^4.21.0`
 - Fixed deprecated dependency warnings by adding npm overrides for `glob` (upgraded to v10.5.0) and `inflight` (replaced with maintained fork)
 
 ## 2025-11-27
