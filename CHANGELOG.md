@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## 2025-12-13
+
+### Dependencies
+- Bumped `@cloudflare/workers-types` from `^4.20251202.0` to `^4.20251205.0`
+- Bumped `fast-check` from `^4.3.0` to `^4.4.0`
+- Bumped `wrangler` from `^4.51.0` to `^4.53.0`
+
 ## 2025-11-28
 
 ### Added
