@@ -20,17 +20,17 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
-    "@babel/preset-env": "^7.28.5",
-    "@cloudflare/workers-types": "^4.20251205.0",
+    "@babel/preset-env": "^7.28.6",
+    "@cloudflare/workers-types": "^4.20260113.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.7",
     "babel-jest": "^30.2.0",
-    "fast-check": "^4.4.0",
+    "fast-check": "^4.5.3",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "wrangler": "^4.53.0"
+    "wrangler": "^4.59.1"
   },
   "overrides": {
     "glob": "^10.5.0",
