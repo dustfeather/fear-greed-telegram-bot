@@ -30,7 +30,7 @@
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "wrangler": "^4.61.1"
+    "wrangler": "^4.62.0"
   },
   "overrides": {
     "glob": "^10.5.0",
