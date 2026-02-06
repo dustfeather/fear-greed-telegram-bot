@@ -55,6 +55,12 @@ jobs:
 
           echo "✓ .dev.vars created for testing"
 
+      - name: Generate wrangler.jsonc for Tests
+        run: node scripts/generate-wrangler-config-local.js
+
+      - name: Apply Local D1 Migrations
+        run: npx wrangler d1 migrations apply FEAR_GREED_D1 --local
+
       - name: Run Tests
         run: npm test
         continue-on-error: false
