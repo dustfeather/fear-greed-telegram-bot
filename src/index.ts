@@ -147,7 +147,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           if (!validation.isValid) {
             await sendTelegramMessage(
               chatId,
-              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 characters, e.g., SPY, TUI1.DE).`,
               env
             );
             return successResponse();
@@ -192,7 +192,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         if (!tickerValidation.isValid) {
           await sendTelegramMessage(
             chatId,
-            `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+            `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 characters, e.g., SPY, TUI1.DE).`,
             env
           );
           return successResponse();
@@ -325,7 +325,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           if (!validation.isValid) {
             await sendTelegramMessage(
               chatId,
-              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 alphanumeric characters).`,
+              `❌ Invalid ticker symbol: "${tickerInput}". Please use a valid ticker (1-10 characters, e.g., SPY, TUI1.DE).`,
               env
             );
             return successResponse();

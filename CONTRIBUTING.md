@@ -12,7 +12,6 @@ This guide provides information about how to contribute to the Fear and Greed Te
 - [Getting Started](#getting-started)
 - [Development Setup](#development-setup)
 - [Making Changes](#making-changes)
-- [Testing](#testing)
 - [Commit Guidelines](#commit-guidelines)
 - [Pull Request Process](#pull-request-process)
 
@@ -39,7 +38,6 @@ We welcome various types of contributions:
 - **Feature enhancements**: New commands, improved trading signal logic, or additional integrations
 - **Code improvements**: Refactoring, performance optimizations, or code quality improvements
 - **Documentation**: Updates to README, code comments, or documentation files
-- **Tests**: New test cases or improvements to existing tests
 - **TypeScript improvements**: Better type definitions, type safety improvements
 
 ### Content We May Not Accept
@@ -47,7 +45,7 @@ We welcome various types of contributions:
 - Changes that break existing functionality without migration paths
 - Features that significantly increase complexity without clear benefits
 - Changes that compromise security or user privacy
-- Modifications to core trading logic without thorough testing and discussion
+- Modifications to core trading logic without discussion
 
 If you're unsure whether your contribution would be accepted, feel free to open an issue to discuss it first!
 
@@ -100,11 +98,10 @@ If you're unsure whether your contribution would be accepted, feel free to open 
 
 - `npm run dev` - Start development server with local config
 - `npm run dev:scheduled` - Test scheduled events locally
-- `npm test` - Run all tests
 - `npm run type-check` - Run TypeScript type checking
 - `npm run deploy` - Deploy to Cloudflare Workers (requires authentication)
 
-For more details, see the [README.md](README.md) and [TESTING.md](TESTING.md) files.
+For more details, see the [README.md](README.md).
 
 ## Making Changes
 
@@ -135,89 +132,7 @@ For more details, see the [README.md](README.md) and [TESTING.md](TESTING.md) fi
   - `trading-signal.ts` - Trading signal logic
   - `indicators.ts` - Technical indicator calculations
   - `utils/` - Utility functions
-- `tests/` - Test files
 - `scripts/` - Build and deployment scripts
-
-## Testing
-
-This project uses Jest for automated testing with automatic Wrangler dev server management.
-
-### Running Tests
-
-Before submitting your changes, make sure all tests pass:
-
-```sh
-# Run all automated tests (Jest automatically manages the worker)
-npm test
-
-# Run tests in watch mode during development
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run type checking
-npm run type-check
-```
-
-### Automatic Worker Management
-
-Jest automatically handles the Wrangler dev server lifecycle:
-- **Before tests**: Starts the worker and waits for it to be ready
-- **During tests**: All tests run with the worker available
-- **After tests**: Stops the worker and cleans up
-
-**No manual worker startup is required** - just run `npm test`.
-
-### Troubleshooting Test Issues
-
-If tests fail with worker connection errors:
-1. Check that port 8787 is available
-2. Verify `.dev.vars` file exists with required environment variables
-3. Check `wrangler.jsonc` configuration is valid
-4. Look for errors in the global setup output
-
-### Writing Tests
-
-When adding new features or fixing bugs, include tests:
-
-- **Use Jest's `expect()` API** for assertions
-- **Organize tests** with `describe()` blocks
-- **Use setup/teardown hooks**: `beforeEach()` and `afterEach()`
-- **Test both success and error cases**
-- **Use mock helpers** from `tests/utils/test-helpers.js`:
-  - `createMockEnv()` - Mock Cloudflare Worker environment
-  - `createMockD1()` - Mock D1 database
-  - `createMockKV()` - Mock KV namespace
-  - `createMockFetch()` - Mock fetch with hostname routing
-  - `createTelegramUpdate()` - Mock Telegram update payload
-
-### Test Organization
-
-- **Unit tests**: Test individual functions in isolation
-- **Integration tests**: Test complete user flows
-- **Property-based tests**: Use `fast-check` for testing properties across many inputs
-
-### Example Test
-
-```javascript
-import { createMockEnv } from '../utils/test-helpers.js';
-
-describe('MyFeature', () => {
-  let env;
-
-  beforeEach(() => {
-    env = createMockEnv();
-  });
-
-  test('should do something specific', () => {
-    const result = myFunction(env);
-    expect(result).toBe(expected);
-  });
-});
-```
-
-For comprehensive testing guidelines, see [.kiro/steering/testing.md](.kiro/steering/testing.md) and [TESTING.md](TESTING.md).
 
 ## Commit Guidelines
 
@@ -243,7 +158,6 @@ Fixes #123
 - **feat**: A new feature
 - **fix**: A bug fix
 - **docs**: Documentation only changes
-- **test**: Adding or updating tests
 - **refactor**: Code changes that neither fix a bug nor add a feature
 - **perf**: Performance improvements
 - **chore**: Changes to build process or auxiliary tools
@@ -260,9 +174,8 @@ Fixes #123
    git rebase main
    ```
 
-2. **Run tests**: Ensure all tests pass and there are no type errors
+2. **Type check**: Ensure there are no type errors (`npm run type-check`)
 3. **Update documentation**: If you've changed functionality, update relevant documentation
-4. **Update CHANGELOG.md**: Add an entry describing your changes (if applicable)
 
 ### Submitting a Pull Request
 
@@ -300,9 +213,6 @@ Once merged:
 
 - [README.md](README.md) - Project overview and quick start
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment instructions
-- [TESTING.md](TESTING.md) - Testing guide
-- [CHANGELOG.md](CHANGELOG.md) - Project changelog
-
 ## Questions?
 
 If you have questions about contributing, feel free to:

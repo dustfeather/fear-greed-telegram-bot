@@ -130,7 +130,7 @@ export async function addTickerToWatchlist(
     if (!validation.isValid) {
       return {
         success: false,
-        message: `Invalid ticker symbol: "${ticker}". Please use a valid ticker (1-10 alphanumeric characters).`
+        message: `Invalid ticker symbol: "${ticker}". Please use a valid ticker (1-10 characters, e.g., SPY, TUI1.DE).`
       };
     }
 
@@ -178,7 +178,7 @@ export async function removeTickerFromWatchlist(
     if (!validation.isValid) {
       return {
         success: false,
-        message: `Invalid ticker symbol: "${ticker}". Please use a valid ticker (1-10 alphanumeric characters).`
+        message: `Invalid ticker symbol: "${ticker}". Please use a valid ticker (1-10 characters, e.g., SPY, TUI1.DE).`
       };
     }
 

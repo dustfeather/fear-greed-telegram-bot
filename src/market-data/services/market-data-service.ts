@@ -18,7 +18,7 @@ export async function fetchMarketData(ticker: string = 'SPY'): Promise<MarketDat
   // Validate and sanitize ticker to prevent URL injection attacks
   const validation = isValidTicker(ticker);
   if (!validation.isValid) {
-    throw createApiError(`Invalid ticker symbol: "${ticker}". Ticker must be 1-10 alphanumeric characters.`);
+    throw createApiError(`Invalid ticker symbol: "${ticker}". Ticker must be 1-10 characters (e.g., SPY, TUI1.DE).`);
   }
   const sanitizedTicker = validation.ticker;
 

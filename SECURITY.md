@@ -103,7 +103,6 @@ We pay special attention to:
 Security updates will be:
 
 - Released as soon as possible after a fix is available
-- Documented in the [CHANGELOG.md](CHANGELOG.md)
 - Tagged with appropriate severity levels
 - Communicated through GitHub releases and security advisories
 

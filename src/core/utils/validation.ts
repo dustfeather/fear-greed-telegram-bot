@@ -88,8 +88,8 @@ export function isValidTicker(ticker: string): { isValid: boolean; ticker: strin
     return { isValid: false, ticker: sanitized };
   }
 
-  // Check if alphanumeric only
-  if (!/^[A-Z0-9]+$/.test(sanitized)) {
+  // Check if alphanumeric with optional dots (e.g., TUI1.DE, BRK.B, VOD.L)
+  if (!/^[A-Z0-9]+(\.[A-Z0-9]+)*$/.test(sanitized)) {
     return { isValid: false, ticker: sanitized };
   }
 

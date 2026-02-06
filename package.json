@@ -11,30 +11,14 @@
     "deploy": "wrangler deploy",
     "webhook:setup": "node scripts/setup-telegram-webhook.js",
     "webhook:info": "node scripts/get-telegram-webhook-info.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --forceExit",
-    "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js --ci --coverage --maxWorkers=2 --forceExit",
-    "test:debug": "node --experimental-vm-modules --inspect-brk node_modules/jest/bin/jest.js --runInBand",
     "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.0",
     "@cloudflare/workers-types": "^4.20260203.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^25.2.0",
-    "babel-jest": "^30.2.0",
-    "fast-check": "^4.5.3",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "wrangler": "^4.62.0"
-  },
-  "overrides": {
-    "glob": "^10.5.0",
-    "inflight": "npm:@aashutoshrathi/inflight@^1.0.0"
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.4.1",

@@ -2,11 +2,6 @@
 
 ## Update Management
 
-### Changelog Maintenance
-- Update `CHANGELOG.md` using YYYY-MM-DD format for new entries
-- Consolidate all changes on the same date under a single date heading
-- Keep entries concise and group related changes together
-
 ### Command Documentation
 - When modifying bot commands, update the "Available commands" helper message
 - Ensure command descriptions are accurate and up-to-date
