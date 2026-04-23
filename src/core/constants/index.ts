@@ -82,6 +82,7 @@ Available commands:
 /execute TICKER PRICE [DATE] - Record execution of a signal at a specific price (e.g., /execute SPY 400.50). Optionally specify date as YYYY-MM-DD (e.g., /execute SPY 400.50 2024-01-15).
 /executions - View your execution history.
 /executions TICKER - View execution history for a specific ticker (e.g., /executions SPY).
+/executions clear - Clear your entire execution history.
 /help - Show this help message.
 
 Note: Scheduled broadcasts automatically skip US stock market holidays. Manual /now requests on holidays will include a market closed notice.

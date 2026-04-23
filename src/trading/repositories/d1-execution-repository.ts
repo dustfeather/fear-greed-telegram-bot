@@ -94,6 +94,32 @@ export async function getExecutionHistory(
 }
 
 /**
+ * Delete all executions for a user
+ * @param db - D1 database instance
+ * @param chatId - User's chat ID
+ * @returns Number of executions deleted
+ */
+export async function clearExecutions(
+  db: D1Database,
+  chatId: number | string
+): Promise<number> {
+  try {
+    const chatIdStr = String(chatId);
+
+    const result = await db
+      .prepare('DELETE FROM executions WHERE chat_id = ?')
+      .bind(chatIdStr)
+      .run();
+
+    return result.meta.changes ?? 0;
+  } catch (error) {
+    const d1Error = wrapD1Error('clearExecutions', error);
+    logD1Error(d1Error);
+    throw d1Error;
+  }
+}
+
+/**
  * Get the most recent execution for a user, optionally filtered by ticker
  * @param db - D1 database instance
  * @param chatId - User's chat ID

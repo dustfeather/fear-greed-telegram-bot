@@ -67,6 +67,19 @@ export async function getLatestExecution(
 }
 
 /**
+ * Delete all executions for a user
+ * @param env - Environment variables
+ * @param chatId - User's chat ID
+ * @returns Number of executions deleted
+ */
+export async function clearExecutions(
+  env: Env,
+  chatId: number | string
+): Promise<number> {
+  return await D1ExecutionRepo.clearExecutions(env.FEAR_GREED_D1, chatId);
+}
+
+/**
  * Format execution history for display
  * @param executions - Array of executions to format
  * @returns Formatted string

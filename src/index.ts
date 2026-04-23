@@ -6,7 +6,7 @@ import type { Env, TelegramUpdate } from './core/types/index.js';
 import { COMMANDS, MESSAGES } from './core/constants/index.js';
 import { successResponse, errorResponse, unauthorizedResponse, badRequestResponse, methodNotAllowedResponse } from './core/utils/response.js';
 import { isValidTicker } from './core/utils/validation.js';
-import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution } from './trading/services/execution-service.js';
+import { recordExecution, getExecutionHistory, formatExecutionHistory, getLatestExecution, clearExecutions } from './trading/services/execution-service.js';
 import { getActivePosition, setActivePosition, clearActivePosition, canTrade, getMonthName } from './trading/services/position-service.js';
 import { getWatchlist, addTickerToWatchlist, removeTickerFromWatchlist, ensureTickerInWatchlist } from './user-management/services/watchlist-service.js';
 import { isBankHoliday } from './trading/utils/holidays.js';
@@ -314,8 +314,28 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
         return successResponse();
       } else if (text.startsWith(COMMANDS.EXECUTIONS)) {
-        // Parse /executions [TICKER] command
+        // Parse /executions [TICKER|clear] command
         const parts = text.trim().split(/\s+/);
+
+        if (parts.length === 2 && parts[1].toLowerCase() === 'clear') {
+          try {
+            const deleted = await clearExecutions(env, chatId);
+            const message = deleted === 0
+              ? 'ℹ️ No executions to clear.'
+              : `✅ Cleared ${deleted} execution${deleted === 1 ? '' : 's'} from your history.`;
+            await sendTelegramMessage(chatId, message, env);
+          } catch (error) {
+            console.error('Error clearing execution history:', error);
+            await sendTelegramMessage(
+              chatId,
+              '❌ Failed to clear execution history. Please try again.',
+              env
+            );
+          }
+
+          return successResponse();
+        }
+
         let ticker: string | undefined;
 
         if (parts.length > 1) {
