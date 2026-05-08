@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev:config": "node scripts/generate-wrangler-config-local.js",
     "dev": "npm run dev:config && wrangler dev",
