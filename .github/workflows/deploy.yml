@@ -18,7 +18,7 @@ jobs:
   validate:
     name: Validate (Type Check & Wrangler)
     needs: tests
-    runs-on: ubuntu-latest
+    runs-on: arc-df-fear-greed-telegram-bot
     strategy:
       matrix:
         validation: [type-check, wrangler-validate]
@@ -95,7 +95,7 @@ jobs:
 
   deploy:
     name: Deploy to Cloudflare Workers
-    runs-on: ubuntu-latest
+    runs-on: arc-df-fear-greed-telegram-bot
     needs: [validate]
     timeout-minutes: 60
     concurrency:
@@ -288,7 +288,7 @@ jobs:
 
   post-deploy:
     name: Post-Deployment Tasks
-    runs-on: ubuntu-latest
+    runs-on: arc-df-fear-greed-telegram-bot
     needs: deploy
     strategy:
       matrix:
