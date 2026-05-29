@@ -10,8 +10,9 @@ jobs:
   tests:
     permissions:
       contents: read
-    uses: dustfeather/shared-workflows/.github/workflows/node-test.yml@v1
+    uses: dustfeather/shared-workflows/.github/workflows/node-test.yml@v2
     with:
+      runner: arc-df-fear-greed-telegram-bot
       script-typecheck: type-check
 
   validate:
