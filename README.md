@@ -1,8 +1,12 @@
 # Fear and Greed Telegram Bot
 
-![Logo](misc/logo.png)
+> [!WARNING]
+> **Deprecated and retired (June 2026).** This project is no longer maintained or deployed.
+> Manually-executed trading signals have been superseded by an automated [Alpaca](https://alpaca.markets/)-based trading bot.
+> The Cloudflare Worker, cron triggers, and Telegram webhook backing this bot have been torn down — it is now inert.
+> This repository is archived for reference only.
 
-[![Deploy to Cloudflare Workers](https://github.com/dustfeather/fear-greed-telegram-bot/actions/workflows/deploy.yml/badge.svg)](https://github.com/dustfeather/fear-greed-telegram-bot/actions/workflows/deploy.yml)
+![Logo](misc/logo.png)
 
 A Telegram bot that provides automated trading signals based on the Fear and Greed Index and technical indicators. Features personalized watchlists, execution tracking, and automatic position management with BUY/SELL/HOLD recommendations using SMA, Bollinger Bands, and market sentiment analysis.
 
